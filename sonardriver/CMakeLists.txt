@@ -1,0 +1,3 @@
+add_executable(sonarDriver sonardriver.cxx)
+
+target_link_libraries(sonarDriver LINK_PUBLIC ezsocket)
