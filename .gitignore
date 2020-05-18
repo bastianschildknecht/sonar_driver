@@ -1,0 +1,7 @@
+# .gitignore
+
+# General house keeping
+
+*.log
+.vscode
+**/bin
