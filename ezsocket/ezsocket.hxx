@@ -20,7 +20,8 @@ namespace EZSocket
         Ready,
         Connected,
         InitError,
-        ConnectError
+        ConnectError,
+        AddressError
     };
 
     class Socket
@@ -34,6 +35,7 @@ namespace EZSocket
         virtual void connectToHost(const char *hostname, uint16_t port);
 
         // Disconnects the socket from the host
+        // (Only needed if you want to reconnect or change receive buffer size)
         virtual void disconnect();
 
         // Reads available bytes from the socket into a buffer up to a maximum length

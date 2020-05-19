@@ -16,6 +16,7 @@ using namespace EZSocket;
 
 Socket::Socket()
 {
+    socket_fd = 0;
 }
 
 Socket::~Socket()
@@ -33,7 +34,7 @@ void Socket::connectToHost(const char *hostname, uint16_t port)
 
         if (inet_pton(AF_INET, hostname, &host_addr.sin_addr) <= 0)
         {
-            state = SocketState::ConnectError;
+            state = SocketState::AddressError;
             return;
         }
 
@@ -141,7 +142,8 @@ void TCPSocket::initSocket()
 {
 #ifdef _WIN32
 #else
-    if (socket_fd = socket(AF_INET, SOCK_STREAM, 0) < 0)
+    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_fd < 0)
     {
         state = SocketState::InitError;
     }
@@ -172,7 +174,8 @@ void UDPSocket::initSocket()
 {
 #ifdef _WIN32
 #else
-    if (socket_fd = socket(AF_INET, SOCK_DGRAM, 0) < 0)
+    socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (socket_fd < 0)
     {
         state = SocketState::InitError;
     }
