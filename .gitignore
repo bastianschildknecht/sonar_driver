@@ -3,6 +3,6 @@
 # General house keeping
 
 *.log
-.vscode
+**/.vscode
 **/bin
 **/build
