@@ -6,6 +6,9 @@
 #include <cstdint>
 
 #ifdef _WIN32
+
+#include <winsock2.h>
+
 #else
 
 #include <netinet/in.h>
@@ -17,11 +20,13 @@ namespace EZSocket
 
     enum SocketState
     {
+        Exists,
         Ready,
         Connected,
         InitError,
         ConnectError,
-        AddressError
+        AddressError,
+        StartupError
     };
 
     class Socket
@@ -55,11 +60,13 @@ namespace EZSocket
         virtual SocketState getState();
 
     protected:
-        int socket_fd;
         SocketState state;
-#ifdef _WIN32
-#else
         struct sockaddr_in host_addr;
+#ifdef _WIN32
+        WSAData wsadata;
+        SOCKET socket_fd;
+#else
+        int socket_fd;
 #endif
         virtual void initSocket() = 0;
     };

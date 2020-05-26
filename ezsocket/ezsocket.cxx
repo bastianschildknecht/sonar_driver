@@ -4,6 +4,10 @@
 
 #ifdef _WIN32
 
+#include <windows.h>
+#include <winsock2.h>
+#include <WS2tcpip.h>
+
 #else
 
 #include <sys/socket.h>
@@ -18,19 +22,42 @@ using namespace EZSocket;
 
 Socket::Socket()
 {
+    state = SocketState::Exists;
+
+#ifdef _WIN32
+    int err = WSAStartup(MAKEWORD(2,0), &wsadata);
+    if (err != 0)
+    {
+        state = SocketState::StartupError;
+    }
+#else
     socket_fd = 0;
+#endif
 }
 
 Socket::~Socket()
 {
+#ifdef _WIN32
+    if (state != SocketState::StartupError)
+    {
+        if (state != SocketState::InitError)
+        {
+            closesocket(socket_fd);
+        }
+        WSACleanup();
+    }
+#else
+    if (state != SocketState::InitError)
+    {
+        close(socket_fd);
+    }
+#endif
 }
 
 void Socket::connectToHost(const char *hostname, uint16_t port)
 {
     if (state == SocketState::Ready)
     {
-#ifdef _WIN32
-#else
         host_addr.sin_family = AF_INET;
         host_addr.sin_port = htons(port);
 
@@ -45,7 +72,7 @@ void Socket::connectToHost(const char *hostname, uint16_t port)
             state = SocketState::ConnectError;
             return;
         }
-#endif
+
         state = SocketState::Connected;
     }
 }
@@ -55,10 +82,11 @@ void Socket::disconnect()
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
+        closesocket(socket_fd);
 #else
         close(socket_fd);
-        initSocket();
 #endif
+        initSocket();
     }
 }
 
@@ -67,7 +95,7 @@ int32_t Socket::readData(void *buffer, int32_t maxLength)
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
-        return 0;
+        return recv(socket_fd, (char *) buffer, maxLength, 0);
 #else
         return read(socket_fd, buffer, (size_t)maxLength);
 #endif
@@ -83,7 +111,7 @@ int32_t Socket::writeData(const void *buffer, int32_t length)
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
-        return 0;
+        return send(socket_fd, (const char *)buffer, length, 0);
 #else
         return write(socket_fd, buffer, (size_t)length);
 #endif
@@ -100,6 +128,7 @@ void Socket::setReceiveBufferSize(int32_t size)
     {
         size = size >= 1024 ? size : 1024;
 #ifdef _WIN32
+        setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, (char*)&size, sizeof(size));
 #else
         setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 #endif
@@ -108,15 +137,22 @@ void Socket::setReceiveBufferSize(int32_t size)
 
 uint64_t Socket::bytesAvailable()
 {
-    int32_t value = 0;
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
+        u_long value = 0;
+        ioctlsocket(socket_fd, FIONREAD, &value);
+        return value;
 #else
+        int32_t value = 0;
         ioctl(socket_fd, FIONREAD, &value);
+        return value
 #endif
     }
-    return value;
+    else
+    {
+        return 0;
+    }
 }
 
 SocketState Socket::getState()
@@ -131,18 +167,23 @@ TCPSocket::TCPSocket() : Socket()
 
 TCPSocket::~TCPSocket()
 {
-#ifdef _WIN32
-#else
-    if (state != SocketState::InitError)
-    {
-        close(socket_fd);
-    }
-#endif
 }
 
 void TCPSocket::initSocket()
 {
 #ifdef _WIN32
+    if (state != SocketState::StartupError)
+    {
+        socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (socket_fd == INVALID_SOCKET)
+        {
+            state = SocketState::InitError;
+        }
+        else
+        {
+            state = SocketState::Ready;
+        }
+    }
 #else
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0)
@@ -163,18 +204,23 @@ UDPSocket::UDPSocket() : Socket()
 
 UDPSocket::~UDPSocket()
 {
-#ifdef _WIN32
-#else
-    if (state != SocketState::InitError)
-    {
-        close(socket_fd);
-    }
-#endif
 }
 
 void UDPSocket::initSocket()
 {
 #ifdef _WIN32
+    if (state != SocketState::StartupError)
+    {
+        socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (socket_fd == INVALID_SOCKET)
+        {
+            state = SocketState::InitError;
+        }
+        else
+        {
+            state = SocketState::Ready;
+        }
+    }
 #else
     socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0)
