@@ -9,15 +9,15 @@ namespace SonarDevices
 {
     class Sonar
     {
-        public:
+    public:
         Sonar();
         virtual ~Sonar() = 0;
 
         // Find sonar via UDP broadcast signal and connect to any sonar (blocking)
         virtual void findAndConnect();
-        
+
         // Connect to sonar at specified IPv4 address (blocking)
-        virtual void connect(const char * address);
+        virtual void connect(const char *address);
 
         // Disconnect from sonar (blocking)
         virtual void disconnect();
@@ -34,20 +34,20 @@ namespace SonarDevices
 
     class OculusM1200d : Sonar
     {
-        public:
+    public:
         OculusM1200d();
         ~OculusM1200d();
     };
 
     class SonarImage
     {
-        public:
+    public:
         SonarImage();
         ~SonarImage();
         uint16_t imageWidth;
         uint16_t imageHeight;
         uint8_t *data[];
     };
-}
+} // namespace SonarDevices
 
 #endif
