@@ -7,23 +7,16 @@ using namespace EZSocket;
 
 int main(int argc, char *argv[])
 {
-    int bufferSize = 1<<16;
-    cout << "Buffer Size: " << bufferSize << endl;
+    int bufferSize = 1<<12;
+    
     Socket *socket = new TCPSocket();
     if (socket->getState() == SocketState::Ready)
     {
         socket->setReceiveBufferSize(2*bufferSize);
-        socket->connectToHost("216.58.215.227", 80);
+        socket->connectToHost("192.168.1.10", 52100);
         if (socket->getState() == SocketState::Connected)
         {
-            // Send GET
-            char *message = "GET / HTTP/1.1\r\n\r\n";
-            int bytesSent = socket->writeData(message, strlen(message));
-            cout << "Sent " << bytesSent << " bytes" << endl;
-            Sleep(1000);
-            // Receive
             char *buff = new char[bufferSize];
-            cout << "Available bytes: " << socket->bytesAvailable() << endl;
             int bytesRead = socket->readData(buff,bufferSize);
             cout << "Received " << bytesRead << " bytes" << endl;
             cout << "Data: " << buff << endl;
