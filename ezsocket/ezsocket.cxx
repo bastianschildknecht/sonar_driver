@@ -1,6 +1,7 @@
 // File: ezsocket.cxx
 
 #include <ezsocket.hxx>
+#include <iostream>
 
 #ifdef _WIN32
 
@@ -25,7 +26,7 @@ Socket::Socket()
     state = SocketState::Exists;
 
 #ifdef _WIN32
-    int err = WSAStartup(MAKEWORD(2,0), &wsadata);
+    int err = WSAStartup(MAKEWORD(2, 0), &wsadata);
     if (err != 0)
     {
         state = SocketState::StartupError;
@@ -54,14 +55,14 @@ Socket::~Socket()
 #endif
 }
 
-void Socket::connectToHost(const char *hostname, uint16_t port)
+void Socket::connectToHost(const char *address, uint16_t port)
 {
     if (state == SocketState::Ready)
     {
         host_addr.sin_family = AF_INET;
         host_addr.sin_port = htons(port);
 
-        if (inet_pton(AF_INET, hostname, &host_addr.sin_addr) <= 0)
+        if (inet_pton(AF_INET, address, &host_addr.sin_addr) <= 0)
         {
             state = SocketState::AddressError;
             return;
@@ -79,7 +80,7 @@ void Socket::connectToHost(const char *hostname, uint16_t port)
 
 void Socket::disconnect()
 {
-    if (state == SocketState::Connected)
+    if (state == SocketState::Connected || state == SocketState::Bound)
     {
 #ifdef _WIN32
         closesocket(socket_fd);
@@ -90,15 +91,74 @@ void Socket::disconnect()
     }
 }
 
+void Socket::bindToAddress(const char *address, uint16_t port)
+{
+    if (state == SocketState::Ready)
+    {
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(port);
+
+        // Load address
+        if (strncmp(address, "ANY", 16) == 0)
+        {
+#ifdef _WIN32
+            server_addr.sin_addr.S_un.S_addr = INADDR_ANY;
+#else
+            server_addr.sin_addr.s_addr = INADDR_ANY;
+#endif
+        }
+        else
+        {
+            if (inet_pton(AF_INET, address, &server_addr.sin_addr) <= 0)
+            {
+                state = SocketState::AddressError;
+                return;
+            }
+        }
+
+        // Bind socket
+        if (bind(socket_fd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+        {
+            state = SocketState::BindError;
+            return;
+        }
+        state = SocketState::Bound;
+    }
+}
+
 int32_t Socket::readData(void *buffer, int32_t maxLength)
 {
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
-        return recv(socket_fd, (char *) buffer, maxLength, 0);
+        return recv(socket_fd, (char *)buffer, maxLength, 0);
 #else
-        return read(socket_fd, buffer, (size_t)maxLength);
+        return recv(socket_fd, buffer, (size_t)maxLength, 0);
 #endif
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, char *addressBuffer, size_t bufferLength)
+{
+    if (state == SocketState::Bound)
+    {
+        struct sockaddr_in src_addr;
+        int src_addr_len = sizeof(src_addr);
+#ifdef _WIN32
+        int32_t ret = recvfrom(socket_fd, (char *)buffer, maxLength, 0, (struct sockaddr *)&src_addr, &src_addr_len);
+#else
+        int32_t ret = recvfrom(socket_fd, buffer, (size_t)maxLength, 0, (struct sockaddr *)&src_addr, &src_addr_len);
+#endif
+
+        if (bufferLength >= INET_ADDRSTRLEN)
+        {
+            inet_ntop(AF_INET, &src_addr.sin_addr, addressBuffer, bufferLength);
+        }
+        return ret;
     }
     else
     {
@@ -113,7 +173,7 @@ int32_t Socket::writeData(const void *buffer, int32_t length)
 #ifdef _WIN32
         return send(socket_fd, (const char *)buffer, length, 0);
 #else
-        return write(socket_fd, buffer, (size_t)length);
+        return send(socket_fd, buffer, (size_t)length, 0);
 #endif
     }
     else
@@ -128,7 +188,7 @@ void Socket::setReceiveBufferSize(int32_t size)
     {
         size = size >= 1024 ? size : 1024;
 #ifdef _WIN32
-        setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, (char*)&size, sizeof(size));
+        setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, (char *)&size, sizeof(size));
 #else
         setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 #endif

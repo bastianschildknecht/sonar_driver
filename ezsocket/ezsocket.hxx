@@ -15,6 +15,8 @@
 
 #endif
 
+#define STR_ADDRESS_LEN 32
+
 namespace EZSocket
 {
 
@@ -23,8 +25,10 @@ namespace EZSocket
         Exists,
         Ready,
         Connected,
+        Bound,
         InitError,
         ConnectError,
+        BindError,
         AddressError,
         StartupError
     };
@@ -37,16 +41,23 @@ namespace EZSocket
 
         // Connects the socket to the specified host on the specified port
         // (blocking)
-        virtual void connectToHost(const char *hostname, uint16_t port);
+        virtual void connectToHost(const char *address, uint16_t port);
 
         // Disconnects the socket from the host
         // (Only needed if you want to reconnect or change receive buffer size)
         virtual void disconnect();
 
-        // Reads available bytes from the socket into a buffer up to a maximum length
+        // Binds the socket to the specified address (can be "ANY") for listening
+        virtual void bindToAddress(const char *address, uint16_t port);
+
+        // Reads available bytes from the connected socket into a buffer up to a maximum length
         virtual int32_t readData(void *buffer, int32_t maxLength);
 
-        // Writes a specified amount of bytes to the socket
+        // Waits for a message and reads available bytes from the bound socket into a buffer up to a maximum length
+        // Also retreives the sender address and stores it in addressBuffer if not NULL
+        virtual int32_t waitForDataAndAddress(void *buffer, int32_t maxLength, char *addressBuffer, size_t bufferLength);
+
+        // Writes a specified amount of bytes to the connected socket
         virtual int32_t writeData(const void *buffer, int32_t length);
 
         // Changes the size of the socket receive buffer
@@ -62,6 +73,7 @@ namespace EZSocket
     protected:
         SocketState state;
         struct sockaddr_in host_addr;
+        struct sockaddr_in server_addr;
 #ifdef _WIN32
         WSAData wsadata;
         SOCKET socket_fd;
