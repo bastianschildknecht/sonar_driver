@@ -1,6 +1,7 @@
 // File: sonardevices.cxx
 
 #include <iostream>
+#include <vector>
 #include <ezsocket.hxx>
 #include <sonardevices.hxx>
 
@@ -10,14 +11,18 @@ using namespace SonarDevices;
 Sonar::Sonar()
 {
     state = SonarState::Ready;
+    callbacks = new std::vector<void (*)(SonarImage *)>();
 }
 
 Sonar::~Sonar()
 {
+    delete callbacks;
+    callbacks = nullptr;
 }
 
 void Sonar::registerCallback(void (*callback)(SonarImage *sonarImage))
 {
+    callbacks->push_back(callback);
 }
 
 SonarState Sonar::getState()
@@ -50,7 +55,8 @@ void OculusSonar::findAndConnect()
         if (sonarUDPSocket->getState() == SocketState::Bound)
         {
             char *buf = new char[256];
-            if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0) {
+            if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0)
+            {
                 connect(sonarAddress);
             }
             delete[] buf;
@@ -78,11 +84,11 @@ void OculusSonar::disconnect()
     sonarTCPSocket->disconnect();
     if (sonarUDPSocket->getState() == SocketState::Ready && sonarTCPSocket->getState() == SocketState::Ready)
     {
-         state = SonarState::Ready;
+        state = SonarState::Ready;
     }
     else
     {
-        state == SonarState::SocketError;
+        state = SonarState::SocketError;
     }
 }
 

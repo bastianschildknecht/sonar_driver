@@ -4,6 +4,7 @@
 #define SONARDEVICES_HXX
 
 #include <cstdint>
+#include <vector>
 #include <ezsocket.hxx>
 
 namespace SonarDevices
@@ -62,6 +63,7 @@ namespace SonarDevices
 
     protected:
         SonarState state;
+        std::vector<void (*)(SonarImage *)> *callbacks;
     };
 
     /**
