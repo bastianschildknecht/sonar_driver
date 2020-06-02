@@ -1,6 +1,5 @@
 // File: sonardevices.cxx
 
-#include <iostream>
 #include <vector>
 #include <ezsocket.hxx>
 #include <sonardevices.hxx>

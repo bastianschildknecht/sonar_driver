@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <vector>
 #include <ezsocket.hxx>
+#include <oculusMessages.hxx>
 
 namespace SonarDevices
 {
@@ -87,8 +88,6 @@ namespace SonarDevices
         EZSocket::Socket *sonarTCPSocket;
         char *sonarAddress;
     };
-
-#define OCULUS_CHECK_ID 0x4f53
 
 #define OCULUS_UDP_PORT 52102
 #define OCULUS_TCP_PORT 52100
