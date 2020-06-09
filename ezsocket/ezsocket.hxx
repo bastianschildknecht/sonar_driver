@@ -4,6 +4,7 @@
 #define EZSOCKET_HXX
 
 #include <cstdint>
+#include <mutex>
 
 #ifdef _WIN32
 
@@ -72,6 +73,7 @@ namespace EZSocket
 
     protected:
         SocketState state;
+        std::mutex *mutex;
         struct sockaddr_in host_addr;
         struct sockaddr_in server_addr;
 #ifdef _WIN32

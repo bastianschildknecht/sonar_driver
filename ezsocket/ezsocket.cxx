@@ -2,6 +2,7 @@
 
 #include <ezsocket.hxx>
 #include <iostream>
+#include <mutex>
 
 #ifdef _WIN32
 
@@ -24,6 +25,7 @@ using namespace EZSocket;
 Socket::Socket()
 {
     state = SocketState::Exists;
+    mutex = new std::mutex();
 
 #ifdef _WIN32
     int err = WSAStartup(MAKEWORD(2, 0), &wsadata);
@@ -38,6 +40,9 @@ Socket::Socket()
 
 Socket::~Socket()
 {
+    delete mutex;
+    mutex = nullptr;
+
 #ifdef _WIN32
     if (state != SocketState::StartupError)
     {
@@ -57,6 +62,7 @@ Socket::~Socket()
 
 void Socket::connectToHost(const char *address, uint16_t port)
 {
+    mutex->lock();
     if (state == SocketState::Ready)
     {
         host_addr.sin_family = AF_INET;
@@ -65,21 +71,25 @@ void Socket::connectToHost(const char *address, uint16_t port)
         if (inet_pton(AF_INET, address, &host_addr.sin_addr) <= 0)
         {
             state = SocketState::AddressError;
+            mutex->unlock();
             return;
         }
 
         if (connect(socket_fd, (struct sockaddr *)&host_addr, sizeof(host_addr)) < 0)
         {
             state = SocketState::ConnectError;
+            mutex->unlock();
             return;
         }
 
         state = SocketState::Connected;
     }
+    mutex->unlock();
 }
 
 void Socket::disconnect()
 {
+    mutex->lock();
     if (state == SocketState::Connected || state == SocketState::Bound)
     {
 #ifdef _WIN32
@@ -89,10 +99,12 @@ void Socket::disconnect()
 #endif
         initSocket();
     }
+    mutex->unlock();
 }
 
 void Socket::bindToAddress(const char *address, uint16_t port)
 {
+    mutex->lock();
     if (state == SocketState::Ready)
     {
         server_addr.sin_family = AF_INET;
@@ -112,6 +124,7 @@ void Socket::bindToAddress(const char *address, uint16_t port)
             if (inet_pton(AF_INET, address, &server_addr.sin_addr) <= 0)
             {
                 state = SocketState::AddressError;
+                mutex->unlock();
                 return;
             }
         }
@@ -120,30 +133,37 @@ void Socket::bindToAddress(const char *address, uint16_t port)
         if (bind(socket_fd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
         {
             state = SocketState::BindError;
+            mutex->unlock();
             return;
         }
         state = SocketState::Bound;
     }
+    mutex->unlock();
 }
 
 int32_t Socket::readData(void *buffer, int32_t maxLength)
 {
+    mutex->lock();
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
-        return recv(socket_fd, (char *)buffer, maxLength, 0);
+        int32_t bytesRead = recv(socket_fd, (char *)buffer, maxLength, 0);
 #else
-        return recv(socket_fd, buffer, (size_t)maxLength, 0);
+        int32_t bytesRead = recv(socket_fd, buffer, (size_t)maxLength, 0);
 #endif
+        mutex->unlock();
+        return bytesRead;
     }
     else
     {
+        mutex->unlock();
         return -1;
     }
 }
 
 int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, char *addressBuffer, size_t bufferLength)
 {
+    mutex->lock();
     if (state == SocketState::Bound)
     {
         struct sockaddr_in src_addr;
@@ -158,32 +178,39 @@ int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, char *add
         {
             inet_ntop(AF_INET, &src_addr.sin_addr, addressBuffer, bufferLength);
         }
+        mutex->unlock();
         return ret;
     }
     else
     {
+        mutex->unlock();
         return -1;
     }
 }
 
 int32_t Socket::writeData(const void *buffer, int32_t length)
 {
+    mutex->lock();
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
-        return send(socket_fd, (const char *)buffer, length, 0);
+        int32_t bytesSent = send(socket_fd, (const char *)buffer, length, 0);
 #else
-        return send(socket_fd, buffer, (size_t)length, 0);
+        int32_t bytesSent = send(socket_fd, buffer, (size_t)length, 0);
 #endif
+        mutex->unlock();
+        return bytesSent;
     }
     else
     {
+        mutex->unlock();
         return -1;
     }
 }
 
 void Socket::setReceiveBufferSize(int32_t size)
 {
+    mutex->lock();
     if (state == SocketState::Ready)
     {
         size = size >= 1024 ? size : 1024;
@@ -193,24 +220,27 @@ void Socket::setReceiveBufferSize(int32_t size)
         setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 #endif
     }
+    mutex->unlock();
 }
 
 uint64_t Socket::bytesAvailable()
 {
+    mutex->lock();
     if (state == SocketState::Connected)
     {
 #ifdef _WIN32
         u_long value = 0;
         ioctlsocket(socket_fd, FIONREAD, &value);
-        return value;
 #else
         int32_t value = 0;
         ioctl(socket_fd, FIONREAD, &value);
-        return value
 #endif
+        mutex->unlock();
+        return value;
     }
     else
     {
+        mutex->unlock();
         return 0;
     }
 }
