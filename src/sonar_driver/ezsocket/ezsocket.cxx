@@ -1,6 +1,6 @@
 // File: ezsocket.cxx
 
-#include <ezsocket.hxx>
+#include <sonar_driver/ezsocket/ezsocket.hxx>
 #include <iostream>
 #include <mutex>
 

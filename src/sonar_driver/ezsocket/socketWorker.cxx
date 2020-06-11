@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 #include <thread>
-#include <ezsocket.hxx>
-#include <socketWorker.hxx>
+#include <sonar_driver/ezsocket/ezsocket.hxx>
+#include <sonar_driver/ezsocket/socketWorker.hxx>
 
 using namespace EZSocket;
 

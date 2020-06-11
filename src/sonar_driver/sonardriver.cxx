@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cstdlib>
-#include <sonardevices.hxx>
+#include <sonar_driver/sonardevices/sonardevices.hxx>
 
 using namespace std;
 using namespace SonarDevices;

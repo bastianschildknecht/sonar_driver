@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <thread>
 #include <mutex>
-#include <ezsocket.hxx>
+#include <sonar_driver/ezsocket/ezsocket.hxx>
 
 namespace EZSocket
 {

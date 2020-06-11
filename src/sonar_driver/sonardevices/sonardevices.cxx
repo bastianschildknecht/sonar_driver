@@ -1,9 +1,9 @@
 // File: sonardevices.cxx
 
 #include <vector>
-#include <ezsocket.hxx>
-#include <sonardevices.hxx>
-#include <oculusMessages.hxx>
+#include <sonar_driver/ezsocket/ezsocket.hxx>
+#include <sonar_driver/sonardevices/sonardevices.hxx>
+#include <sonar_driver/sonardevices/oculusMessages.hxx>
 
 using namespace EZSocket;
 using namespace SonarDevices;

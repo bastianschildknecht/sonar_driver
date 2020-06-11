@@ -7,9 +7,9 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <ezsocket.hxx>
-#include <socketWorker.hxx>
-#include <oculusMessages.hxx>
+#include <sonar_driver/ezsocket/ezsocket.hxx>
+#include <sonar_driver/ezsocket/socketWorker.hxx>
+#include <sonar_driver/sonardevices/oculusMessages.hxx>
 
 namespace SonarDevices
 {
