@@ -1,6 +1,8 @@
 // File: sonardevices.cxx
 
 #include <vector>
+#include <cstring>
+#include <memory.h>
 #include <sonar_driver/ezsocket/ezsocket.hxx>
 #include <sonar_driver/sonardevices/sonardevices.hxx>
 #include <sonar_driver/sonardevices/oculusMessages.hxx>
@@ -309,7 +311,6 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
     uint32_t imageOffset;
     uint16_t beams;
     uint16_t ranges;
-    uint32_t size;
 
     uint16_t version = ospr->fireMessage.head.msgVersion;
 
@@ -323,14 +324,12 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
         imageOffset = ospr2->imageOffset;
         beams = ospr2->nBeams;
         ranges = ospr2->nRanges;
-        size = sizeof(OculusSimplePingResult2);
         break;
     default:
         imageSize = ospr->imageSize;
         imageOffset = ospr->imageOffset;
         beams = ospr->nBeams;
         ranges = ospr->nRanges;
-        size = sizeof(OculusSimplePingResult);
         break;
     }
 

@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <thread>
+#include <memory.h>
 #include <sonar_driver/ezsocket/ezsocket.hxx>
 #include <sonar_driver/ezsocket/socketWorker.hxx>
 

@@ -3,6 +3,7 @@
 #include <sonar_driver/ezsocket/ezsocket.hxx>
 #include <iostream>
 #include <mutex>
+#include <cstring>
 
 #ifdef _WIN32
 
@@ -171,7 +172,7 @@ int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, char *add
 #ifdef _WIN32
         int32_t ret = recvfrom(socket_fd, (char *)buffer, maxLength, 0, (struct sockaddr *)&src_addr, &src_addr_len);
 #else
-        int32_t ret = recvfrom(socket_fd, buffer, (size_t)maxLength, 0, (struct sockaddr *)&src_addr, &src_addr_len);
+        int32_t ret = recvfrom(socket_fd, buffer, (size_t)maxLength, 0, (struct sockaddr *)&src_addr, (socklen_t *)&src_addr_len);
 #endif
 
         if (bufferLength >= INET_ADDRSTRLEN)
