@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(sonar_driver)
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -13,7 +13,9 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 # ezsocket
 add_library(ezsocket 
@@ -38,50 +40,34 @@ target_include_directories(sonardevices PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-## publishers
-
-# oculus pressure node
-add_executable(oculus_pressure_node src/oculus_pressure_node.cxx)
-target_link_libraries(oculus_pressure_node sonardevices)
-ament_target_dependencies(oculus_pressure_node 
-  rclcpp
-  sensor_msgs
+# oculusDriver
+add_library(oculusDriver src/
+  src/sonar_driver/oculusDriver/oculusDriverNode.cxx
 )
-target_include_directories(oculus_pressure_node PUBLIC
+ament_target_dependencies(oculusDriver
+  rclcpp
+  std_msgs
+  sensor_msgs
+  geometry_msgs)
+
+target_include_directories(oculusDriver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-install(TARGETS oculus_pressure_node
-  EXPORT export_${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME})
-
-# oculus temperature node
-add_executable(oculus_temperature_node src/oculus_temperature_node.cxx)
-target_link_libraries(oculus_temperature_node sonardevices)
-ament_target_dependencies(oculus_temperature_node 
+# oculus driver node
+add_executable(oculus_driver src/oculus_driver.cxx)
+target_link_libraries(oculus_driver sonardevices oculusDriver)
+ament_target_dependencies(oculus_driver 
   rclcpp
+  std_msgs
   sensor_msgs
+  geometry_msgs
 )
-target_include_directories(oculus_temperature_node PUBLIC
+target_include_directories(oculus_driver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-install(TARGETS oculus_temperature_node
-  EXPORT export_${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME})
-
-# oculus image node
-add_executable(oculus_image_node src/oculus_image_node.cxx)
-target_link_libraries(oculus_image_node sonardevices)
-ament_target_dependencies(oculus_image_node 
-  rclcpp
-  sensor_msgs
-)
-target_include_directories(oculus_image_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-install(TARGETS oculus_image_node
+install(TARGETS oculus_driver
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME})
 

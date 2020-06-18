@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include <sonar_driver/sonardevices/sonardevices.hxx>
-#include "oculusDriverNode.hxx"
+#include <sonar_driver/oculusDriver/oculusDriverNode.hxx>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -24,13 +24,13 @@ void sonar_image_callback(SonarImage *image)
     // Get time from system:
     auto now = std::chrono::high_resolution_clock::now();
     auto nanoseconds = now.time_since_epoch();
-    int32_t seconds = (int32_t)(nanoseconds.count() / 1e9);
-    uint32_t nanos = (uint32_t)(nanoseconds.count() % 1e9);
+    int32_t seconds = (int32_t)(nanoseconds.count() / (uint64_t)1e9);
+    uint32_t nanos = (uint32_t)(nanoseconds.count() % (uint64_t)1e9);
 
     // Update header for all messages
-    oculusNode->commonHeader.stamp.sec = seconds;
-    oculusNode->commonHeader.stamp.nanosec = nanos;
-    oculusNode->commonHeader.frame_id = std::to_string(frameCounter++); // string
+    oculusNode->commonHeader->stamp.sec = seconds;
+    oculusNode->commonHeader->stamp.nanosec = nanos;
+    oculusNode->commonHeader->frame_id = std::to_string(frameCounter++); // string
 
     // Create the message from the sonar image
     oculusNode->sonarImage->header = *(oculusNode->commonHeader);
@@ -41,15 +41,11 @@ void sonar_image_callback(SonarImage *image)
     uint32_t size = oculusNode->sonarImage->height * oculusNode->sonarImage->width;
 
     // Adapt size of the sonar image if not big enough
-    if (size > oculusNode->imageDataSize)
-    {
-        oculusNode->sonarImage->data = realloc(oculusNode->sonarImage->data, size);
-        oculusNode->imageDataSize = size;
-    }
-    memcpy(&oculusNode->sonarImage->data, image->data, size);
+    oculusNode->sonarImage->data.resize(size);
+    memcpy(&oculusNode->sonarImage->data[0], image->data, size);
 
     // Publish the message on the OculusDriverNode
-    oculusNode->imagePublisher->publish(oculusNode->sonarImage);
+    oculusNode->imagePublisher->publish(*(oculusNode->sonarImage));
 
     // Check image type
     switch (image->imageType)
@@ -59,12 +55,12 @@ void sonar_image_callback(SonarImage *image)
         OculusSonarImage *osi = (OculusSonarImage *) image;
         // Pressure
         oculusNode->sonarPressure->header = *(oculusNode->commonHeader);
-        oculusNode->sonarPressure->pressure = osi->pressure;
-        oculusNode->pressurePublisher->publish(oculusNode->sonarPressure);
+        oculusNode->sonarPressure->fluid_pressure = osi->pressure;
+        oculusNode->pressurePublisher->publish(*(oculusNode->sonarPressure));
         // Temperature
         oculusNode->sonarTemperature->header = *(oculusNode->commonHeader);
         oculusNode->sonarTemperature->temperature = osi->temperature;
-        oculusNode->temperaturePublisher->publish(oculusNode->sonarTemperature);
+        oculusNode->temperaturePublisher->publish(*(oculusNode->sonarTemperature));
         break;
     }
     case SonarImageType::OculusSonarImage2Object:
@@ -72,18 +68,18 @@ void sonar_image_callback(SonarImage *image)
         OculusSonarImage2 *osi2 = (OculusSonarImage2 *) image;
         // Pressure
         oculusNode->sonarPressure->header = *(oculusNode->commonHeader);
-        oculusNode->sonarPressure->pressure = osi2->pressure;
-        oculusNode->pressurePublisher->publish(oculusNode->sonarPressure);
+        oculusNode->sonarPressure->fluid_pressure = osi2->pressure;
+        oculusNode->pressurePublisher->publish(*(oculusNode->sonarPressure));
         // Temperature
         oculusNode->sonarTemperature->header = *(oculusNode->commonHeader);
         oculusNode->sonarTemperature->temperature = osi2->temperature;
-        oculusNode->temperaturePublisher->publish(oculusNode->sonarTemperature);
+        oculusNode->temperaturePublisher->publish(*(oculusNode->sonarTemperature));
         // Orientation 
         oculusNode->sonarOrientation->header = *(oculusNode->commonHeader);
         oculusNode->sonarOrientation->vector.x = osi2->heading;
         oculusNode->sonarOrientation->vector.y = osi2->pitch;
         oculusNode->sonarOrientation->vector.z = osi2->roll;
-        oculusNode->orientationPublisher->publish(oculusNode->sonarOrientation);
+        oculusNode->orientationPublisher->publish(*(oculusNode->sonarOrientation));
         break;
     }
     default:
@@ -102,7 +98,7 @@ int main(int argc, char *argv[])
     logMessage("Looking for oculus sonar...\n");
     Sonar *sonar = new OculusSonar();
     sonar->findAndConnect();
-    if (sonar->getState != SonarState::Connected)
+    if (sonar->getState() != SonarState::Connected)
     {
         logMessage("Could not connect!\n");
         exit(EXIT_FAILURE);
@@ -121,7 +117,7 @@ int main(int argc, char *argv[])
     rclcpp::init(argc, argv);
     rclcpp::Node *node = new OculusDriverNode("oculus_driver");
     
-    logMessage("Registering sonar image callbacks...\n")
+    logMessage("Registering sonar image callbacks...\n");
     sonar->registerCallback(sonar_image_callback);
 
     logMessage("Node started!\n");

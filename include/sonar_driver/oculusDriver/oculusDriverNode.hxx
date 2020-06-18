@@ -16,7 +16,6 @@ public:
     static OculusDriverNode *getInstace();
     OculusDriverNode(const char *nodeName);
     ~OculusDriverNode();
-    uint32_t imageDataSize;
     std_msgs::msg::Header *commonHeader;
     sensor_msgs::msg::Image *sonarImage;
     sensor_msgs::msg::FluidPressure *sonarPressure;
@@ -25,9 +24,10 @@ public:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr imagePublisher;
     rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pressurePublisher;
     rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperaturePublisher;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr orientationPublisher;
 
 protected:
-    static OculusDriverNode *instance;
-}
+    inline static OculusDriverNode *instance = nullptr;
+};
 
 #endif
