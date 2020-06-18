@@ -1,94 +1,145 @@
-// Publisher for the Sonar Data in ROS2
-// TODO: better explanation
+#include <cstdlib>
+#include <chrono>
+#include <string>
+#include <thread>
+#include <iostream>
+
 #include <sonar_driver/sonardevices/sonardevices.hxx>
+#include "oculusDriverNode.hxx"
 
-#include <chrono>  // for timer
-#include <memory>  // make_shared? i have no idea
-#include <string>  // for std::string
-
-#include "rclcpp/rclcpp.hpp"  // Node functionality
-// Message types
+#include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/fluid_pressure.hpp"
+#include "sensor_msgs/msg/temperature.hpp"
 
-class SonarImagePublisher : public rclcpp::Node
+using namespace SonarDevices;
+
+void sonar_image_callback(SonarImage *image)
 {
-    public:
-        SonarImagePublisher() 
-        : Node("sonar_image_publisher")
-        {
-        std::string TOPIC = "/sonar_message";
-        //rclcpp::QoS BUFF_SIZE = rclcpp::QoS::;
+    static uint64_t frameCounter = 0;
 
-        publisher = this->create_publisher<sensor_msgs::msg::Image>(TOPIC, 10); 
-        RCLCPP_DEBUG(this->get_logger(), "published sonar msg");
-        }
+    // Get OculusDriverNode
+    OculusDriverNode *oculusNode = OculusDriverNode::getInstace();
 
-        sensor_msgs::msg::Image sonar_message;
-        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher;
-
-};
-
-// sensor_msgs::msg::Image image_to_msg(SonarDevices::SonarImage img);
-sensor_msgs::msg::Image image_to_msg(SonarDevices::SonarImage* img)
-// converting the sonar image to a ros image msg
-{
-    // take system time 0 as starting point for timestamp
-    auto now = std::chrono::high_resolution_clock::now();  // time in seconds
-    // split into seconds and nano seconds
+    // Get time from system:
+    auto now = std::chrono::high_resolution_clock::now();
     auto nanoseconds = now.time_since_epoch();
-    int32_t seconds = (int32_t) (nanoseconds.count() / 1000000000);
-    // take away the 'seconds' part from the overall time and leave only nano part
-    uint32_t nanos = (uint32_t) (nanoseconds.count() - (seconds * 1000000000));  
+    int32_t seconds = (int32_t)(nanoseconds.count() / 1e9);
+    uint32_t nanos = (uint32_t)(nanoseconds.count() % 1e9);
 
-    sensor_msgs::msg::Image msg;
-    // TODO: better use ping start time form sonar
-    msg.header.stamp.sec = seconds;
-    msg.header.stamp.nanosec = nanos;
-    msg.header.frame_id = -1;  // uint64_t  counter, maybe lock, all callbacks from same thread
-    msg.height = img->imageHeight;
-    msg.width = img->imageWidth;
-    msg.encoding = "mono8";  // taken form sensor_msgs/include/image_enncodings.hpp
-    msg.is_bigendian = true;  // no clue what it is, lets try sthg TODO
-    msg.step = img->imageWidth;  // since data is uint8
-    
-    uint32_t size = msg.height * msg.width;
-    memcpy(&msg.data, img->data, size);
+    // Update header for all messages
+    oculusNode->commonHeader.stamp.sec = seconds;
+    oculusNode->commonHeader.stamp.nanosec = nanos;
+    oculusNode->commonHeader.frame_id = std::to_string(frameCounter++); // string
 
-    return msg;
+    // Create the message from the sonar image
+    oculusNode->sonarImage->header = *(oculusNode->commonHeader);
+    oculusNode->sonarImage->height = image->imageHeight;
+    oculusNode->sonarImage->width = image->imageWidth;
+    oculusNode->sonarImage->step = image->imageWidth; // since data of sonar image is uint8
+
+    uint32_t size = oculusNode->sonarImage->height * oculusNode->sonarImage->width;
+
+    // Adapt size of the sonar image if not big enough
+    if (size > oculusNode->imageDataSize)
+    {
+        oculusNode->sonarImage->data = realloc(oculusNode->sonarImage->data, size);
+        oculusNode->imageDataSize = size;
+    }
+    memcpy(&oculusNode->sonarImage->data, image->data, size);
+
+    // Publish the message on the OculusDriverNode
+    oculusNode->imagePublisher->publish(oculusNode->sonarImage);
+
+    // Check image type
+    switch (image->imageType)
+    {
+    case SonarImageType::OculusSonarImageObject:
+    {
+        OculusSonarImage *osi = (OculusSonarImage *) image;
+        // Pressure
+        oculusNode->sonarPressure->header = *(oculusNode->commonHeader);
+        oculusNode->sonarPressure->pressure = osi->pressure;
+        oculusNode->pressurePublisher->publish(oculusNode->sonarPressure);
+        // Temperature
+        oculusNode->sonarTemperature->header = *(oculusNode->commonHeader);
+        oculusNode->sonarTemperature->temperature = osi->temperature;
+        oculusNode->temperaturePublisher->publish(oculusNode->sonarTemperature);
+        break;
+    }
+    case SonarImageType::OculusSonarImage2Object:
+    {
+        OculusSonarImage2 *osi2 = (OculusSonarImage2 *) image;
+        // Pressure
+        oculusNode->sonarPressure->header = *(oculusNode->commonHeader);
+        oculusNode->sonarPressure->pressure = osi2->pressure;
+        oculusNode->pressurePublisher->publish(oculusNode->sonarPressure);
+        // Temperature
+        oculusNode->sonarTemperature->header = *(oculusNode->commonHeader);
+        oculusNode->sonarTemperature->temperature = osi2->temperature;
+        oculusNode->temperaturePublisher->publish(oculusNode->sonarTemperature);
+        // Orientation 
+        oculusNode->sonarOrientation->header = *(oculusNode->commonHeader);
+        oculusNode->sonarOrientation->vector.x = osi2->heading;
+        oculusNode->sonarOrientation->vector.y = osi2->pitch;
+        oculusNode->sonarOrientation->vector.z = osi2->roll;
+        oculusNode->orientationPublisher->publish(oculusNode->sonarOrientation);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
-int main(int argc, char * argv[])
+void logMessage(const char *msg)
 {
+    std::cout << msg;
+}
 
-    // TODO: shoud argvs be address to sonar or sth like that, that the callback can get executed on it??
-
-    SonarDevices::Sonar *sonar = new SonarDevices::OculusSonar();
+int main(int argc, char *argv[])
+{
+    // Initialize and connect to sonar
+    logMessage("Looking for oculus sonar...\n");
+    Sonar *sonar = new OculusSonar();
     sonar->findAndConnect();
-
-    SonarImagePublisher pub;
-
-    while(rclcpp::ok)
+    if (sonar->getState != SonarState::Connected)
     {
-        // pub.sonar_image = SonarDevices::Sonar::registerCallback(image_to_msg); 
+        logMessage("Could not connect!\n");
+        exit(EXIT_FAILURE);
+    }
+    logMessage("Connected to sonar at ");
+    logMessage(sonar->getLocation());
+    logMessage("\n");
 
-        // test image to see whether or not the message sending works
-        SonarDevices::SonarImage test_img;
-        uint8_t test_data[] = {42};
-        test_img.imageType = SonarDevices::SonarImageObject;
-        test_img.imageWidth = 1;
-        test_img.imageHeight = 1;
-        test_img.data = test_data;
-        
-        pub.sonar_message = image_to_msg(&test_img);
+    // Configure sonar
+    logMessage("Configuring sonar...\n");
+    sonar->configure(2, 10.0, 0.35, 0.0, 0.0, false, 1.0, 255);
+    sonar->setPingRate(40);
 
-        pub.publisher->publish(pub.sonar_message);  //TODO move publish to callback function
+    // Initialize ROS Node
+    logMessage("Initializing ROS 2 integration...\n");
+    rclcpp::init(argc, argv);
+    rclcpp::Node *node = new OculusDriverNode("oculus_driver");
+    
+    logMessage("Registering sonar image callbacks...\n")
+    sonar->registerCallback(sonar_image_callback);
+
+    logMessage("Node started!\n");
+    while (rclcpp::ok())
+    {
+        sonar->fire();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    RCLCPP_INFO(pub.get_logger(), "status is not ok: SIGINT has fired");  // SIG nal  INT errupt?
+    // Tear down connections and clean up
+    logMessage("Tearing down node!\n");
+    delete node;
+    node = nullptr;
     rclcpp::shutdown();
 
-    //sonar->disconnect();
+    sonar->disconnect();
+    delete sonar;
+    sonar = nullptr;
 
-    return 0;
-
+    exit(EXIT_SUCCESS);
 }
