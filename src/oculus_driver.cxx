@@ -1,3 +1,8 @@
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/fluid_pressure.hpp"
+#include "sensor_msgs/msg/temperature.hpp"
+
 #include <cstdlib>
 #include <chrono>
 #include <string>
@@ -7,17 +12,10 @@
 #include <sonar_driver/sonardevices/sonardevices.hxx>
 #include <sonar_driver/oculusDriver/oculusDriverNode.hxx>
 
-#include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/msg/image.hpp"
-#include "sensor_msgs/msg/fluid_pressure.hpp"
-#include "sensor_msgs/msg/temperature.hpp"
-
 using namespace SonarDevices;
 
 void sonar_image_callback(SonarImage *image)
 {
-    static uint64_t frameCounter = 0;
-
     // Get OculusDriverNode
     OculusDriverNode *oculusNode = OculusDriverNode::getInstace();
 
@@ -30,7 +28,7 @@ void sonar_image_callback(SonarImage *image)
     // Update header for all messages
     oculusNode->commonHeader->stamp.sec = seconds;
     oculusNode->commonHeader->stamp.nanosec = nanos;
-    oculusNode->commonHeader->frame_id = std::to_string(frameCounter++); // string
+    oculusNode->commonHeader->frame_id = "base_oculus";
 
     // Create the message from the sonar image
     oculusNode->sonarImage->header = *(oculusNode->commonHeader);
@@ -109,7 +107,7 @@ int main(int argc, char *argv[])
 
     // Configure sonar
     logMessage("Configuring sonar...\n");
-    sonar->configure(2, 10.0, 0.35, 0.0, 0.0, false, 1.0, 255);
+    sonar->configure(2, 1.0, 1.0, 0.0, 0.0, false, 0.59, 255);
     sonar->setPingRate(40);
 
     // Initialize ROS Node
