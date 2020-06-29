@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
     // Configure sonar
     logMessage("Configuring sonar...\n");
-    sonar->configure(2, 1.0, 1.0, 0.0, 0.0, false, 0.59, 255);
+    sonar->configure(2, 1.0, 0.0, 0.0, 0.0, false, 0.59, 100);
     sonar->setPingRate(40);
 
     // Initialize ROS Node
