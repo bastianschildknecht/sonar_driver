@@ -1,3 +1,5 @@
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/fluid_pressure.hpp"
@@ -107,7 +109,7 @@ int main(int argc, char *argv[])
 
     // Configure sonar
     logMessage("Configuring sonar...\n");
-    sonar->configure(2, 1.0, 0.0, 0.0, 0.0, false, 0.59, 100);
+    sonar->configure(2, 5.0, 80.0, 0.0, 0.0, false, 255, 0xff);
     sonar->setPingRate(40);
 
     // Initialize ROS Node
