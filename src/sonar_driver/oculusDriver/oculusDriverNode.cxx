@@ -34,11 +34,35 @@ OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName
     pressurePublisher = this->create_publisher<sensor_msgs::msg::FluidPressure>("pressure", 10);
     temperaturePublisher = this->create_publisher<sensor_msgs::msg::Temperature>("temperature", 10);
     orientationPublisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("orientatiion", 10);
+    configurationPublisher = this->create_publisher<sonar_driver_interfaces::msg::SonarConfiguration>("configuration", 10);
+
+    // Initialize subscribers
+    configurationListeners = new std::vector<std::function<void(sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr)>>();
+    configurationSubscriber = this->create_subscription<sonar_driver_interfaces::msg::SonarConfiguration>(
+        "reconfigure",
+        10,
+        [this](sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr msg) {
+            configurationCallback(msg);
+        }
+    );
 
     // Singleton pattern
     if (instance == nullptr)
     {
         instance = this;
+    }
+}
+
+void OculusDriverNode::addConfigurationListener(std::function<void(sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr)> callback)
+{
+    configurationListeners->push_back(callback);
+}
+
+void OculusDriverNode::configurationCallback(sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr msg)
+{
+    for (auto &listener : *configurationListeners)
+    {
+        listener(msg);
     }
 }
 
@@ -54,4 +78,6 @@ OculusDriverNode::~OculusDriverNode()
     sonarTemperature = nullptr;
     delete sonarOrientation;
     sonarOrientation = nullptr;
+    delete configurationListeners;
+    configurationListeners = nullptr;
 }
