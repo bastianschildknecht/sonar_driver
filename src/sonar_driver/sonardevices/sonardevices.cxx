@@ -18,6 +18,8 @@ Sonar::Sonar()
     currGain = 1.0;
     speedOfSound = 0.0;
     salinity = 0.0;
+    temperature = 0.0;
+    pressure = 0.0;
     gainAssistActive = false;
     gamma = 0;
     netSpeedLimit = 255;
@@ -65,12 +67,70 @@ SonarImage Sonar::getLastImage()
     return *lastImage;
 }
 
+uint8_t Sonar::getFireMode()
+{
+    return fireMode;
+}
+
+uint8_t Sonar::getPingRate()
+{
+    return pingRate;
+}
+
+double Sonar::getCurrentRange()
+{
+    return currRange;
+}
+
+double Sonar::getCurrentGain()
+{
+    return currGain;
+}
+
+bool Sonar::gainAssistEnabled()
+{
+    return gainAssistActive;
+}
+
+uint8_t Sonar::getGamma()
+{
+    return gamma;
+}
+
+double Sonar::getSpeedOfSound()
+{
+    return speedOfSound;
+}
+
+double Sonar::getSalinity()
+{
+    return salinity;
+}
+
+double Sonar::getTemperature()
+{
+    return temperature;
+}
+
+double Sonar::getPressure()
+{
+    return pressure;
+}
+
+uint8_t Sonar::getNetworkSpeedLimit()
+{
+    return netSpeedLimit;
+}
+
 OculusSonar::OculusSonar() : Sonar()
 {
+    partNumber = OculusPartNumberType::partNumberUndefined;
     sonarTCPSocket = new TCPSocket();
     sonarUDPSocket = new UDPSocket();
     sonarAddress = new char[STR_ADDRESS_LEN];
     oculusPingRate = PingRateType::pingRateStandby;
+    beams = 0;
+    rangeBinCount = 0;
 }
 
 OculusSonar::~OculusSonar()
@@ -314,6 +374,9 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
 
     uint16_t version = ospr->fireMessage.head.msgVersion;
 
+    uint16_t partNumber = ospr->fireMessage.head.srcDeviceId;
+    this->partNumber = static_cast<OculusPartNumberType>(partNumber);
+
     OculusSimplePingResult2 *ospr2 = (OculusSimplePingResult2 *)ospr;
 
     // Check message version
@@ -333,6 +396,10 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
         break;
     }
 
+    // Remember the beams and range bin count
+    this->beams = beams;
+    this->rangeBinCount = ranges;
+
     // Check if image size is correct
     if (ospr->fireMessage.head.payloadSize + sizeof(OculusMessageHeader) == imageOffset + imageSize)
     {
@@ -346,8 +413,11 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
             OculusSonarImage2 *osimg2 = new OculusSonarImage2();
             osimg2->pingStartTime = ospr2->pingStartTime;
             osimg2->sonarFrequency = ospr2->frequency;
+            this->operatingFrequency = ospr2->frequency;
             osimg2->temperature = ospr2->temperature;
+            this->temperature = ospr2->temperature;
             osimg2->pressure = ospr2->pressure;
+            this->pressure = ospr2->pressure;
             osimg2->heading = ospr2->heading;
             osimg2->pitch = ospr2->pitch;
             osimg2->roll = ospr2->roll;
@@ -360,8 +430,11 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
             OculusSonarImage *osimg = new OculusSonarImage();
             osimg->pingStartTime = ospr->pingStartTime;
             osimg->sonarFrequency = ospr->frequency;
+            this->operatingFrequency = ospr->frequency;
             osimg->temperature = ospr->temperature;
+            this->temperature = ospr->temperature;
             osimg->pressure = ospr->pressure;
+            this->pressure = ospr->pressure;
             img = osimg;
             break;
         }
@@ -394,6 +467,221 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
 const char *OculusSonar::getLocation()
 {
     return sonarAddress;
+}
+
+double OculusSonar::getOperatingFrequency()
+{
+    return operatingFrequency;
+}
+
+uint16_t OculusSonar::getBeamCount()
+{
+    return beams;
+}
+
+double OculusSonar::getBeamSeparation()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+            return 0.5;
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            return 0.25;
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 0.25;
+                else if (fireMode == 2) // High frequency
+                    return 0.16;
+                break; // Unknown fire mode -> Cannot determine beam separation for M1200d
+            }
+        default:
+            break; // Unknown part number -> Cannot determine beam separation
+    }
+    return 0.0;
+}
+
+double OculusSonar::getMinimumRange()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+            return 0.2;
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            return 0.1;
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            return 0.1;
+        default:
+            break; // Unknown part number -> Cannot determine minimum range
+    }
+    return 0.0;
+}
+
+double OculusSonar::getMaximumRange()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+            return 200.0;
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 120.0;
+                else if (fireMode == 2) // High frequency
+                    return 40.0;
+                break; // Unknown fire mode -> Cannot determine maximum range for M750d
+            }
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 40.0;
+                else if (fireMode == 2) // High frequency
+                    return 10.0;
+                break; // Unknown fire mode -> Cannot determine maximum range for M1200d
+            }
+        default:
+            break; // Unknown part number -> Cannot determine maximum range
+    }
+    return 0.0;
+}
+
+double OculusSonar::getRangeResolution()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+            return 0.008;
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 0.004;
+                else if (fireMode == 2) // High frequency
+                    return 0.0025;
+                break; // Unknown fire mode -> Cannot determine range resolution for M750d
+            }
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            return 0.0025;
+        default:
+            break; // Unknown part number -> Cannot determine range resolution
+    }
+    return 0.0;
+}
+
+uint32_t OculusSonar::getRangeBinCount()
+{
+    return rangeBinCount;
+}
+
+double OculusSonar::getHorzFOV()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            return 130.0;
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 130.0;
+                else if (fireMode == 2) // High frequency
+                    return 60.0;
+                break; // Unknown fire mode -> Cannot determine horzFOV for M1200d
+            }
+        default:
+            break; // Unknown part number -> Cannot determine horzFOV
+    }
+    return 0.0;
+}
+
+double OculusSonar::getVertFOV()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            return 20.0;
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 20.0;
+                else if (fireMode == 2) // High frequency
+                    return 12.0;
+                break; // Unknown fire mode -> Cannot determine vertFOV for M1200d
+            }
+        default:
+            break; // Unknown part number -> Cannot determine vertFOV
+    }
+    return 0.0;
+}
+
+double OculusSonar::getAngularResolution()
+{
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusPartNumberType::partNumberM370s_Deep:
+            return 0.2;
+        case OculusPartNumberType::partNumberM750d:
+        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 1.0;
+                else if (fireMode == 2) // High frequency
+                    return 0.6;
+                break; // Unknown fire mode -> Cannot determine angular resolution for M750d
+            }
+        case OculusPartNumberType::partNumberM1200d:
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            {
+                if (fireMode == 1) // Low frequency
+                    return 0.6;
+                else if (fireMode == 2) // High frequency
+                    return 0.4;
+                break; // Unknown fire mode -> Cannot determine angular resolution for M1200d
+            }
+        default:
+            break; // Unknown part number -> Cannot determine angular resolution
+    }
+    return 0.0;
 }
 
 OculusM1200d::OculusM1200d() : OculusSonar()

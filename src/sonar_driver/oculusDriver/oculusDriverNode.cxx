@@ -28,6 +28,7 @@ OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName
     sonarTemperature = new sensor_msgs::msg::Temperature();
     sonarTemperature->variance = 0.0;
     sonarOrientation = new geometry_msgs::msg::Vector3Stamped();
+    sonarConfiguration = new sonar_driver_interfaces::msg::SonarConfiguration();
 
     // Initialize publishers
     imagePublisher = this->create_publisher<sensor_msgs::msg::Image>("image", 10);
@@ -37,11 +38,11 @@ OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName
     configurationPublisher = this->create_publisher<sonar_driver_interfaces::msg::SonarConfiguration>("configuration", 10);
 
     // Initialize subscribers
-    configurationListeners = new std::vector<std::function<void(sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr)>>();
-    configurationSubscriber = this->create_subscription<sonar_driver_interfaces::msg::SonarConfiguration>(
+    configurationListeners = new std::vector<std::function<void(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr)>>();
+    configurationChangeSubscriber = this->create_subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>(
         "reconfigure",
         10,
-        [this](sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr msg) {
+        [this](sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr msg) {
             configurationCallback(msg);
         }
     );
@@ -53,12 +54,14 @@ OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName
     }
 }
 
-void OculusDriverNode::addConfigurationListener(std::function<void(sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr)> callback)
+void OculusDriverNode::addConfigurationListener(std::function<void(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr)> callback)
 {
     configurationListeners->push_back(callback);
 }
 
-void OculusDriverNode::configurationCallback(sonar_driver_interfaces::msg::SonarConfiguration::SharedPtr msg)
+
+
+void OculusDriverNode::configurationCallback(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr msg)
 {
     for (auto &listener : *configurationListeners)
     {
@@ -78,6 +81,8 @@ OculusDriverNode::~OculusDriverNode()
     sonarTemperature = nullptr;
     delete sonarOrientation;
     sonarOrientation = nullptr;
+    delete sonarConfiguration;
+    sonarConfiguration = nullptr;
     delete configurationListeners;
     configurationListeners = nullptr;
 }
