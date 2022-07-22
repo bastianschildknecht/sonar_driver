@@ -168,6 +168,8 @@ namespace SonarDevices
         // Get the set network speed limit (Mbps)
         virtual uint8_t getNetworkSpeedLimit();
 
+        virtual std::string getDeviceName() = 0;
+
 
     protected:
         SonarState state;
@@ -219,6 +221,7 @@ namespace SonarDevices
         virtual double getHorzFOV();
         virtual double getVertFOV();
         virtual double getAngularResolution();
+        virtual std::string getDeviceName();
 
     protected:
         OculusMessages::OculusPartNumberType partNumber;
@@ -229,6 +232,7 @@ namespace SonarDevices
         double operatingFrequency;
         uint16_t beams;
         uint32_t rangeBinCount;
+        double rangeResolution;
 
         virtual void invokeCallbacks();
         virtual void processSimplePingResult(OculusMessages::OculusSimplePingResult *msg);

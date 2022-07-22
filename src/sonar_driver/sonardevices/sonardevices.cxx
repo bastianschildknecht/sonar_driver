@@ -129,8 +129,10 @@ OculusSonar::OculusSonar() : Sonar()
     sonarUDPSocket = new UDPSocket();
     sonarAddress = new char[STR_ADDRESS_LEN];
     oculusPingRate = PingRateType::pingRateStandby;
+    operatingFrequency = 0.0;
     beams = 0;
     rangeBinCount = 0;
+    rangeResolution = 0.0;
 }
 
 OculusSonar::~OculusSonar()
@@ -374,9 +376,9 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
 
     uint16_t version = ospr->fireMessage.head.msgVersion;
 
-    uint16_t partNumber = ospr->fireMessage.head.srcDeviceId;
+    uint16_t partNumber = ospr->fireMessage.head.spare2;
     this->partNumber = static_cast<OculusPartNumberType>(partNumber);
-
+    
     OculusSimplePingResult2 *ospr2 = (OculusSimplePingResult2 *)ospr;
 
     // Check message version
@@ -387,12 +389,14 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
         imageOffset = ospr2->imageOffset;
         beams = ospr2->nBeams;
         ranges = ospr2->nRanges;
+        this->rangeResolution = ospr2->rangeResolution;
         break;
     default:
         imageSize = ospr->imageSize;
         imageOffset = ospr->imageOffset;
         beams = ospr->nBeams;
         ranges = ospr->nRanges;
+        this->rangeResolution = ospr->rangeResolution;
         break;
     }
 
@@ -565,30 +569,7 @@ double OculusSonar::getMaximumRange()
 
 double OculusSonar::getRangeResolution()
 {
-    switch (partNumber)
-    {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
-            return 0.008;
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
-            {
-                if (fireMode == 1) // Low frequency
-                    return 0.004;
-                else if (fireMode == 2) // High frequency
-                    return 0.0025;
-                break; // Unknown fire mode -> Cannot determine range resolution for M750d
-            }
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
-            return 0.0025;
-        default:
-            break; // Unknown part number -> Cannot determine range resolution
-    }
-    return 0.0;
+    return rangeResolution;
 }
 
 uint32_t OculusSonar::getRangeBinCount()
@@ -682,6 +663,32 @@ double OculusSonar::getAngularResolution()
             break; // Unknown part number -> Cannot determine angular resolution
     }
     return 0.0;
+}
+
+std::string OculusSonar::getDeviceName() {
+    switch (partNumber)
+    {
+        case OculusPartNumberType::partNumberM370s:
+            return "Oculus M370s";
+        case OculusPartNumberType::partNumberM370s_Artemis:
+            return "Oculus M370s-Artemis";
+        case OculusPartNumberType::partNumberM370s_Deep:
+            return "Oculus M370s-Deep";
+        case OculusPartNumberType::partNumberM750d:
+            return "Oculus M750d";
+        case OculusPartNumberType::partNumberM750d_Artemis:
+            return "Oculus M750d-Artemis";
+        case OculusPartNumberType::partNumberM750d_Fusion:
+            return "Oculus M750d-Fusion";
+        case OculusPartNumberType::partNumberM1200d:
+            return "Oculus M1200d";
+        case OculusPartNumberType::partNumberM1200d_Artemis:
+            return "Oculus M1200d-Artemis";
+        case OculusPartNumberType::partNumberM1200d_Deep:
+            return "Oculus M1200d-Deep";
+        default:
+            return "Unknown Oculus Sonar";
+    }
 }
 
 OculusM1200d::OculusM1200d() : OculusSonar()
