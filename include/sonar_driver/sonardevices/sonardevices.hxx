@@ -105,6 +105,72 @@ namespace SonarDevices
         // Get a string describing the current address or interface location of the sonar
         virtual const char *getLocation() = 0;
 
+        // Get the current fire mode of the sonar device
+        virtual uint8_t getFireMode();
+
+        // Get the current operating frequency of the sonar (Hz)
+        virtual double getOperatingFrequency() = 0;
+
+        // Get the current ping rate of the sonar (Hz)
+        virtual uint8_t getPingRate();
+
+        // Get the operational beam count of the sonar
+        virtual uint16_t getBeamCount() = 0;
+
+        // Get the beam separation of the sonar (degrees)
+        virtual double getBeamSeparation() = 0;
+
+        // Get the absolute minimum range of the sonar (meters)
+        virtual double getMinimumRange() = 0;
+
+        // Get the absolute maximum range of the sonar (meters)
+        virtual double getMaximumRange() = 0;
+
+        // Get the current set range of the sonar (meters)
+        virtual double getCurrentRange();
+
+        // Get the current range resolution of the sonar (meters)
+        virtual double getRangeResolution() = 0;
+
+        // Get the number of range bins.
+        virtual uint32_t getRangeBinCount() = 0;
+
+        // Get the current horizontal field of view of the sonar (degrees)
+        virtual double getHorzFOV() = 0;
+
+        // Get the current vertical field of view of the sonar (degrees)
+        virtual double getVertFOV() = 0;
+
+        // Get the current angular resolution of the sonar (degrees)
+        virtual double getAngularResolution() = 0;
+
+        // Get the current gain of the sonar (%)
+        virtual double getCurrentGain();
+
+        // Get whether the sonar is currently in gain assist mode
+        virtual bool gainAssistEnabled();
+
+        // Get the currently used gamma correction value
+        virtual uint8_t getGamma();
+
+        // Get the currently used speed of sound value (m/s)
+        virtual double getSpeedOfSound();
+
+        // Get the currently used salinity value (ppt)
+        virtual double getSalinity();
+
+        // Get the currently used temperature value (degC)
+        virtual double getTemperature();
+
+        // Get the currently used pressure value (bar)
+        virtual double getPressure();
+
+        // Get the set network speed limit (Mbps)
+        virtual uint8_t getNetworkSpeedLimit();
+
+        virtual std::string getDeviceName() = 0;
+
+
     protected:
         SonarState state;
         std::vector<void (*)(SonarImage *)> *callbacks;
@@ -118,6 +184,8 @@ namespace SonarDevices
         double currGain;
         double speedOfSound;
         double salinity;
+        double temperature;
+        double pressure;
         bool gainAssistActive;
         uint8_t gamma;
         uint8_t netSpeedLimit;
@@ -143,14 +211,32 @@ namespace SonarDevices
         virtual uint8_t setPingRate(uint8_t frequency);
         virtual void fire();
         virtual const char *getLocation();
+        virtual double getOperatingFrequency();
+        virtual uint16_t getBeamCount();
+        virtual double getBeamSeparation();
+        virtual double getMinimumRange();
+        virtual double getMaximumRange();
+        virtual double getRangeResolution();
+        virtual uint32_t getRangeBinCount();
+        virtual double getHorzFOV();
+        virtual double getVertFOV();
+        virtual double getAngularResolution();
+        virtual std::string getDeviceName();
 
     protected:
+        OculusMessages::OculusPartNumberType partNumber;
         EZSocket::Socket *sonarUDPSocket;
         EZSocket::Socket *sonarTCPSocket;
         char *sonarAddress;
         OculusMessages::PingRateType oculusPingRate;
+        double operatingFrequency;
+        uint16_t beams;
+        uint32_t rangeBinCount;
+        double rangeResolution;
+
         virtual void invokeCallbacks();
         virtual void processSimplePingResult(OculusMessages::OculusSimplePingResult *msg);
+        virtual OculusMessages::OculusPartNumberType determinePartNumber(char *broadcastMessage);
     };
 
 #define OCULUS_UDP_PORT 52102

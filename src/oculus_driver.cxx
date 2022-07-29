@@ -5,6 +5,9 @@
 #include "sensor_msgs/msg/fluid_pressure.hpp"
 #include "sensor_msgs/msg/temperature.hpp"
 
+#include "sonar_driver_interfaces/msg/sonar_configuration.hpp"
+#include "sonar_driver_interfaces/msg/sonar_configuration_change.hpp"
+
 #include <cstdlib>
 #include <chrono>
 #include <string>
@@ -16,16 +19,24 @@
 
 using namespace SonarDevices;
 
+void store_system_time(int32_t &seconds, uint32_t &nanoseconds)
+{
+    // Get time from system:
+    auto now = std::chrono::high_resolution_clock::now();
+    auto nanos = now.time_since_epoch();
+    seconds = (int32_t)(nanos.count() / (uint64_t)1e9);
+    nanoseconds = (uint32_t)(nanos.count() % (uint64_t)1e9);
+}
+
 void sonar_image_callback(SonarImage *image)
 {
     // Get OculusDriverNode
     OculusDriverNode *oculusNode = OculusDriverNode::getInstace();
 
     // Get time from system:
-    auto now = std::chrono::high_resolution_clock::now();
-    auto nanoseconds = now.time_since_epoch();
-    int32_t seconds = (int32_t)(nanoseconds.count() / (uint64_t)1e9);
-    uint32_t nanos = (uint32_t)(nanoseconds.count() % (uint64_t)1e9);
+    int32_t seconds;
+    uint32_t nanos;
+    store_system_time(seconds, nanos);
 
     // Update header for all messages
     oculusNode->commonHeader->stamp.sec = seconds;
@@ -87,6 +98,72 @@ void sonar_image_callback(SonarImage *image)
     }
 }
 
+void config_callback(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr config, Sonar *sonar)
+{
+    // Check if not null
+    if (config == nullptr)
+    {
+        return;
+    }
+
+    sonar->configure(
+        config->fire_mode,
+        config->range,
+        config->gain,
+        config->speed_of_sound,
+        config->salinity,
+        config->gain_assist,
+        config->gamma,
+        config->net_speed_limit
+    );
+
+    sonar->setPingRate(config->ping_rate);
+}
+
+void get_and_publish_config(Sonar *sonar)
+{
+    // Get OculusDriverNode
+    OculusDriverNode *oculusNode = OculusDriverNode::getInstace();
+
+    sonar_driver_interfaces::msg::SonarConfiguration configuration;
+
+    // Get time from system:
+    int32_t seconds;
+    uint32_t nanos;
+    store_system_time(seconds, nanos);
+
+    // Set the header
+    configuration.header.stamp.sec = seconds;
+    configuration.header.stamp.nanosec = nanos;
+    configuration.header.frame_id = "base_oculus";
+
+    // Fill message with configuration data from sonar
+    configuration.fire_mode = sonar->getFireMode();
+    configuration.frequency = sonar->getOperatingFrequency();
+    configuration.ping_rate = sonar->getPingRate();
+    configuration.beam_count = sonar->getBeamCount();
+    configuration.beam_separation = sonar->getBeamSeparation();
+    configuration.min_range = sonar->getMinimumRange();
+    configuration.max_range = sonar->getMaximumRange();
+    configuration.current_range = sonar->getCurrentRange();
+    configuration.range_resolution = sonar->getRangeResolution();
+    configuration.range_count = sonar->getRangeBinCount();
+    configuration.horz_fov = sonar->getHorzFOV();
+    configuration.vert_fov = sonar->getVertFOV();
+    configuration.angular_resolution = sonar->getAngularResolution();
+    configuration.gain = sonar->getCurrentGain();
+    configuration.gain_assist = sonar->gainAssistEnabled();
+    configuration.gamma = sonar->getGamma();
+    configuration.speed_of_sound = sonar->getSpeedOfSound();
+    configuration.salinity = sonar->getSalinity();
+    configuration.temperature = sonar->getTemperature();
+    configuration.pressure = sonar->getPressure();
+    configuration.net_speed_limit = sonar->getNetworkSpeedLimit();
+
+    // Publish the message on the OculusDriverNode
+    oculusNode->configurationPublisher->publish(configuration);
+}
+
 void logMessage(const char *msg)
 {
     std::cout << msg;
@@ -115,22 +192,32 @@ int main(int argc, char *argv[])
     // Initialize ROS Node
     logMessage("Initializing ROS 2 integration...\n");
     rclcpp::init(argc, argv);
-    rclcpp::Node *node = new OculusDriverNode("oculus_driver");
+
+    // Create OculusDriverNode and a shared pointer to it
+    std::shared_ptr<OculusDriverNode> node = std::make_shared<OculusDriverNode>("oculus_driver");
     
     logMessage("Registering sonar image callbacks...\n");
     sonar->registerCallback(sonar_image_callback);
 
+    logMessage("Registering sonar configuration change listeners...\n");
+    std::function<void(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr)> listener;
+    listener = [sonar](sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr config) {
+        config_callback(config, sonar);
+    };
+    node->addConfigurationListener(listener);
+
     logMessage("Node started!\n");
     while (rclcpp::ok())
     {
+        rclcpp::spin_some(node);
         sonar->fire();
+        get_and_publish_config(sonar);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     // Tear down connections and clean up
     logMessage("Tearing down node!\n");
-    delete node;
-    node = nullptr;
+
     rclcpp::shutdown();
 
     sonar->disconnect();

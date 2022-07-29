@@ -28,17 +28,44 @@ OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName
     sonarTemperature = new sensor_msgs::msg::Temperature();
     sonarTemperature->variance = 0.0;
     sonarOrientation = new geometry_msgs::msg::Vector3Stamped();
+    sonarConfiguration = new sonar_driver_interfaces::msg::SonarConfiguration();
 
     // Initialize publishers
     imagePublisher = this->create_publisher<sensor_msgs::msg::Image>("image", 10);
     pressurePublisher = this->create_publisher<sensor_msgs::msg::FluidPressure>("pressure", 10);
     temperaturePublisher = this->create_publisher<sensor_msgs::msg::Temperature>("temperature", 10);
     orientationPublisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("orientatiion", 10);
+    configurationPublisher = this->create_publisher<sonar_driver_interfaces::msg::SonarConfiguration>("configuration", 10);
+
+    // Initialize subscribers
+    configurationListeners = new std::vector<std::function<void(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr)>>();
+    configurationChangeSubscriber = this->create_subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>(
+        "reconfigure",
+        10,
+        [this](sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr msg) {
+            configurationCallback(msg);
+        }
+    );
 
     // Singleton pattern
     if (instance == nullptr)
     {
         instance = this;
+    }
+}
+
+void OculusDriverNode::addConfigurationListener(std::function<void(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr)> callback)
+{
+    configurationListeners->push_back(callback);
+}
+
+
+
+void OculusDriverNode::configurationCallback(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr msg)
+{
+    for (auto &listener : *configurationListeners)
+    {
+        listener(msg);
     }
 }
 
@@ -54,4 +81,8 @@ OculusDriverNode::~OculusDriverNode()
     sonarTemperature = nullptr;
     delete sonarOrientation;
     sonarOrientation = nullptr;
+    delete sonarConfiguration;
+    sonarConfiguration = nullptr;
+    delete configurationListeners;
+    configurationListeners = nullptr;
 }
