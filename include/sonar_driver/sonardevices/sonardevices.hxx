@@ -236,6 +236,7 @@ namespace SonarDevices
 
         virtual void invokeCallbacks();
         virtual void processSimplePingResult(OculusMessages::OculusSimplePingResult *msg);
+        virtual OculusMessages::OculusPartNumberType determinePartNumber(char *broadcastMessage);
     };
 
 #define OCULUS_UDP_PORT 52102

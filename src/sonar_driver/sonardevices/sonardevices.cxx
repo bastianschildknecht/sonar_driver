@@ -155,12 +155,36 @@ void OculusSonar::findAndConnect()
             char *buf = new char[256];
             if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0)
             {
+                this->partNumber = determinePartNumber(buf);
                 connect(sonarAddress);
             }
             delete[] buf;
             buf = nullptr;
         }
     }
+}
+
+OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpBroadcastMessage)
+{
+    // First check if the message is a valid Oculus message
+    // The first two bytes should containt the Oculus Check ID
+    uint16_t checkID = *(uint16_t *)udpBroadcastMessage;
+    if (checkID != OCULUS_CHECK_ID)
+    {
+        return OculusPartNumberType::partNumberUndefined;
+    }
+
+    // The UDP broadcast message contains a OculusMessageHeader as
+    // the first part of the message.
+    OculusMessageHeader *oculusMessageHeader = (OculusMessageHeader *)udpBroadcastMessage;
+
+    // The spare2 field contains the part number.
+    uint16_t numericPartNumber = oculusMessageHeader->spare2;
+
+    // Cast the short to a OculusPartNumberType
+    OculusPartNumberType partNumber = static_cast<OculusPartNumberType>(numericPartNumber);
+
+    return partNumber;
 }
 
 void OculusSonar::connect(const char *address)
@@ -375,9 +399,6 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
     uint16_t ranges;
 
     uint16_t version = ospr->fireMessage.head.msgVersion;
-
-    uint16_t partNumber = ospr->fireMessage.head.spare2;
-    this->partNumber = static_cast<OculusPartNumberType>(partNumber);
     
     OculusSimplePingResult2 *ospr2 = (OculusSimplePingResult2 *)ospr;
 
