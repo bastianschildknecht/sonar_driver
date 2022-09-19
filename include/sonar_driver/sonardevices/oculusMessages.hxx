@@ -102,7 +102,7 @@ namespace OculusMessages
         uint16_t msgId;       // Message identifier
         uint16_t msgVersion;
         uint32_t payloadSize; // The size of the message payload (header not included)
-        uint16_t spare2;
+        uint16_t spare2;      // This should be the device part number 
     };
 
     typedef struct

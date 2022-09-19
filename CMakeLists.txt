@@ -16,6 +16,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sonar_driver_interfaces REQUIRED)
 
 # ezsocket
 add_library(ezsocket 
@@ -48,7 +49,8 @@ ament_target_dependencies(oculusDriver
   rclcpp
   std_msgs
   sensor_msgs
-  geometry_msgs)
+  geometry_msgs
+  sonar_driver_interfaces)
 
 target_include_directories(oculusDriver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
