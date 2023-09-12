@@ -19,7 +19,7 @@
 
 using namespace SonarDevices;
 
-void store_system_time(int32_t &seconds, uint32_t &nanoseconds)
+inline void store_system_time(int32_t &seconds, uint32_t &nanoseconds)
 {
     // Get time from system:
     auto now = std::chrono::high_resolution_clock::now();
@@ -28,15 +28,10 @@ void store_system_time(int32_t &seconds, uint32_t &nanoseconds)
     nanoseconds = (uint32_t)(nanos.count() % (uint64_t)1e9);
 }
 
-void sonar_image_callback(SonarImage *image)
+void publish_image(SonarImage *image, int32_t seconds, uint32_t nanos)
 {
     // Get OculusDriverNode
     OculusDriverNode *oculusNode = OculusDriverNode::getInstace();
-
-    // Get time from system:
-    int32_t seconds;
-    uint32_t nanos;
-    store_system_time(seconds, nanos);
 
     // Update header for all messages
     oculusNode->commonHeader->stamp.sec = seconds;
@@ -120,17 +115,12 @@ void config_callback(sonar_driver_interfaces::msg::SonarConfigurationChange::Sha
     sonar->setPingRate(config->ping_rate);
 }
 
-void get_and_publish_config(Sonar *sonar)
+void get_and_publish_config(Sonar *sonar, int32_t seconds, uint32_t nanos)
 {
     // Get OculusDriverNode
     OculusDriverNode *oculusNode = OculusDriverNode::getInstace();
 
     sonar_driver_interfaces::msg::SonarConfiguration configuration;
-
-    // Get time from system:
-    int32_t seconds;
-    uint32_t nanos;
-    store_system_time(seconds, nanos);
 
     // Set the header
     configuration.header.stamp.sec = seconds;
@@ -162,6 +152,17 @@ void get_and_publish_config(Sonar *sonar)
 
     // Publish the message on the OculusDriverNode
     oculusNode->configurationPublisher->publish(configuration);
+}
+
+void sonar_image_callback(Sonar *sonar, SonarImage *image)
+{
+    // Get time from system:
+    int32_t seconds;
+    uint32_t nanos;
+    store_system_time(seconds, nanos);
+
+    publish_image(image, seconds, nanos);
+    get_and_publish_config(sonar, seconds, nanos);
 }
 
 void logMessage(const char *msg)
@@ -211,7 +212,6 @@ int main(int argc, char *argv[])
     {
         rclcpp::spin_some(node);
         sonar->fire();
-        get_and_publish_config(sonar);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 

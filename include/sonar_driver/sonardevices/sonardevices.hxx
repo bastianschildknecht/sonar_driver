@@ -67,6 +67,9 @@ namespace SonarDevices
         double roll;
     };
 
+    class Sonar;
+    typedef void (*SonarCallback)(Sonar *sonar, SonarImage *sonarImage);
+
     class Sonar
     {
     public:
@@ -83,7 +86,7 @@ namespace SonarDevices
         virtual void disconnect() = 0;
 
         // Register a callback function to be called, when an image is ready (blocking)
-        virtual void registerCallback(void (*callback)(SonarImage *sonarImage));
+        virtual void registerCallback(SonarCallback callback);
 
         // Configure the sonar for firing
         virtual void configure(int mode, double range, double gain, double speedOfSound, double salinity, bool gainAssist, uint8_t gamma, uint8_t netSpeedLimit) = 0;
@@ -173,7 +176,7 @@ namespace SonarDevices
 
     protected:
         SonarState state;
-        std::vector<void (*)(SonarImage *)> *callbacks;
+        std::vector<SonarCallback> *callbacks;
         std::thread *callbackThread;
         std::mutex *callbackMutex;
         SonarImage *lastImage;

@@ -24,7 +24,7 @@ Sonar::Sonar()
     gamma = 0;
     netSpeedLimit = 255;
     pingRate = 0;
-    callbacks = new std::vector<void (*)(SonarImage *)>();
+    callbacks = new std::vector<SonarCallback>();
     callbackMutex = new std::mutex();
     callbackThreadStarted = false;
     callbackThreadActive = false;
@@ -50,11 +50,10 @@ Sonar::~Sonar()
     lastImage = nullptr;
 }
 
-void Sonar::registerCallback(void (*callback)(SonarImage *sonarImage))
+void Sonar::registerCallback(SonarCallback callback)
 {
-    callbackMutex->lock();
+    std::lock_guard<std::mutex> lock(*callbackMutex);
     callbacks->push_back(callback);
-    callbackMutex->unlock();
 }
 
 SonarState Sonar::getState()
@@ -474,14 +473,13 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
         lastImage = img;
 
         // New image ready, notify all callbacks
-        void (*cb)(SonarImage *);
-        callbackMutex->lock();
+        SonarCallback cb;
+        std::lock_guard<std::mutex> lock(*callbackMutex);
         for (uint16_t i = 0; i < callbacks->size(); i++)
         {
             cb = callbacks->at(i);
-            cb(img);
+            cb(this, img);
         }
-        callbackMutex->unlock();
     }
     else
     {
