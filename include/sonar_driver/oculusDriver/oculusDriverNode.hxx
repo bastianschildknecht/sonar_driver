@@ -10,6 +10,7 @@
 #include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "sonar_driver_interfaces/msg/sonar_configuration.hpp"
 #include "sonar_driver_interfaces/msg/sonar_configuration_change.hpp"
+#include "sonar_driver_interfaces/msg/sonar_bearings.hpp"
 
 #ifndef OCULUSDRIVERNODE_HXX
 #define OCULUSDRIVERNODE_HXX
@@ -33,6 +34,7 @@ public:
     rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperaturePublisher;
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr orientationPublisher;
     rclcpp::Publisher<sonar_driver_interfaces::msg::SonarConfiguration>::SharedPtr configurationPublisher;
+    rclcpp::Publisher<sonar_driver_interfaces::SonarBearings>::SharedPtr bearingsPublisher;
     rclcpp::Subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>::SharedPtr configurationChangeSubscriber;
 
 protected:

@@ -36,6 +36,7 @@ OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName
     temperaturePublisher = this->create_publisher<sensor_msgs::msg::Temperature>("temperature", 10);
     orientationPublisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("orientatiion", 10);
     configurationPublisher = this->create_publisher<sonar_driver_interfaces::msg::SonarConfiguration>("configuration", 10);
+    bearingsPublisher = this->create_publisher<sonar_driver_interfaces::msg::SonarBearings>("bearings", 10);
 
     // Initialize subscribers
     configurationListeners = new std::vector<std::function<void(sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr)>>();

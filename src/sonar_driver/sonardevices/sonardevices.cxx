@@ -121,6 +121,17 @@ uint8_t Sonar::getNetworkSpeedLimit()
     return netSpeedLimit;
 }
 
+
+std::vector<double> Sonar::getBearingTable()
+{
+    int n = lastImage->imageWidth;
+    std::vector<double> bearingVector(n);  // preallocate space for the bearings
+    std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
+        return static_cast<double>(bearing);
+    });
+    return bearingVector;
+}
+
 OculusSonar::OculusSonar() : Sonar()
 {
     partNumber = OculusPartNumberType::partNumberUndefined;
@@ -446,6 +457,8 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
             osimg2->pitch = ospr2->pitch;
             osimg2->roll = ospr2->roll;
             img = osimg2;
+
+    
             break;
         }
 
@@ -463,6 +476,11 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
             break;
         }
         }
+
+        img->bearingTable = (int16_t*) realloc(img->bearingTable, beams * sizeof(int16_t));
+        memcpy(img->bearingTable, startAddress + 202, beams * sizeof(int16_t));
+
+
         img->imageWidth = beams;
         img->imageHeight = ranges;
         img->data = new uint8_t[imageSize];

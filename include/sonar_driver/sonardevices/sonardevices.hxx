@@ -7,6 +7,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <algorithm>
 #include <sonar_driver/ezsocket/ezsocket.hxx>
 #include <sonar_driver/ezsocket/socketWorker.hxx>
 #include <sonar_driver/sonardevices/oculusMessages.hxx>
@@ -40,6 +41,7 @@ namespace SonarDevices
         uint16_t imageWidth;
         uint16_t imageHeight;
         uint8_t *data;
+        int16_t* bearingTable;
     };
 
     class OculusSonarImage : public SonarImage
@@ -170,6 +172,9 @@ namespace SonarDevices
 
         // Get the set network speed limit (Mbps)
         virtual uint8_t getNetworkSpeedLimit();
+        
+        // Get the bearing table (deg)
+        virtual std::vector<double> getBearingTable();
 
         virtual std::string getDeviceName() = 0;
 
