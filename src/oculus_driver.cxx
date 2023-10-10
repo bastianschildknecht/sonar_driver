@@ -153,14 +153,15 @@ void get_and_publish_config(Sonar *sonar, int32_t seconds, uint32_t nanos)
     // Publish the message on the OculusDriverNode
     oculusNode->configurationPublisher->publish(configuration);
 
+    printf("oculus_driver.cpp get_and_publish_config(): Before publishing bearing\n");
     // Publish the bearing table 
     sonar_driver_interfaces::msg::SonarBearings bearings;
     bearings.header.stamp.sec = seconds;
     bearings.header.stamp.nanosec = nanos;
     bearings.header.frame_id = "sonar_0";
     bearings.bearings = sonar->getBearingTable();
-
-    oculusNode->bearingPublisher->publish(bearings);
+    oculusNode->bearingsPublisher->publish(bearings);
+    printf("oculus_driver.cpp get_and_publish_config(): Published bearing\n");
 }
 
 void sonar_image_callback(Sonar *sonar, SonarImage *image)

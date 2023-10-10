@@ -7,6 +7,8 @@
 #include <sonar_driver/sonardevices/sonardevices.hxx>
 #include <sonar_driver/sonardevices/oculusMessages.hxx>
 
+#include <iostream>
+
 using namespace EZSocket;
 using namespace SonarDevices;
 using namespace OculusMessages;
@@ -124,11 +126,13 @@ uint8_t Sonar::getNetworkSpeedLimit()
 
 std::vector<double> Sonar::getBearingTable()
 {
+    printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
     std::vector<double> bearingVector(n);  // preallocate space for the bearings
     std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
-        return static_cast<double>(bearing);
+        return (double)bearing / 100.0f;
     });
+    printf("sonardevices.cpp getBearingTable(): Finished transform\n");
     return bearingVector;
 }
 
@@ -476,9 +480,17 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
             break;
         }
         }
+        
+        // if (img->bearingTable == NULL) {
+        //     img->bearingTable = (int16_t*)malloc(beams * sizeof(int16_t));
+        // }else{
+        //     img->bearingTable = (int16_t*) realloc(img->bearingTable, beams * sizeof(int16_t));
+        // }
 
-        img->bearingTable = (int16_t*) realloc(img->bearingTable, beams * sizeof(int16_t));
-        memcpy(img->bearingTable, startAddress + 202, beams * sizeof(int16_t));
+        delete[] img->bearingTable;
+        img->bearingTable = new int16_t[beams * sizeof(int16_t)];
+
+        memcpy(img->bearingTable, startAddress + 122, beams * sizeof(int16_t));
 
 
         img->imageWidth = beams;

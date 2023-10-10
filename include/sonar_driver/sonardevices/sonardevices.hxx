@@ -41,7 +41,7 @@ namespace SonarDevices
         uint16_t imageWidth;
         uint16_t imageHeight;
         uint8_t *data;
-        int16_t* bearingTable;
+        int16_t* bearingTable = NULL;
     };
 
     class OculusSonarImage : public SonarImage

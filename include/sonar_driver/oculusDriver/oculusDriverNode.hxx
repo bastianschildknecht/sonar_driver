@@ -34,7 +34,7 @@ public:
     rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperaturePublisher;
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr orientationPublisher;
     rclcpp::Publisher<sonar_driver_interfaces::msg::SonarConfiguration>::SharedPtr configurationPublisher;
-    rclcpp::Publisher<sonar_driver_interfaces::SonarBearings>::SharedPtr bearingsPublisher;
+    rclcpp::Publisher<sonar_driver_interfaces::msg::SonarBearings>::SharedPtr bearingsPublisher;
     rclcpp::Subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>::SharedPtr configurationChangeSubscriber;
 
 protected:
