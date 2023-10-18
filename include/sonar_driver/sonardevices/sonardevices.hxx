@@ -174,7 +174,7 @@ namespace SonarDevices
         virtual uint8_t getNetworkSpeedLimit();
         
         // Get the bearing table (deg)
-        virtual std::vector<double> getBearingTable();
+        virtual std::vector<int16_t> getBearingTable();
 
         virtual std::string getDeviceName() = 0;
 

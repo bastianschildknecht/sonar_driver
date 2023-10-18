@@ -124,13 +124,13 @@ uint8_t Sonar::getNetworkSpeedLimit()
 }
 
 
-std::vector<double> Sonar::getBearingTable()
+std::vector<int16_t> Sonar::getBearingTable()
 {
     printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
-    std::vector<double> bearingVector(n);  // preallocate space for the bearings
+    std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
     std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
-        return (double)bearing / 100.0f;
+        return bearing;
     });
     printf("sonardevices.cpp getBearingTable(): Finished transform\n");
     return bearingVector;
