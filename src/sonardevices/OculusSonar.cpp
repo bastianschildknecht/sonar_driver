@@ -301,35 +301,16 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         SonarImage *img;
 
         switch (version){
-            case 2:
-            {
-                OculusSonarImage2 *osimg2 = new OculusSonarImage2();
-                osimg2->pingStartTime = ospr2->pingStartTime;
-                osimg2->sonarFrequency = ospr2->frequency;
+            case 2:{
                 this->operatingFrequency = ospr2->frequency;
-                osimg2->temperature = ospr2->temperature;
                 this->temperature = ospr2->temperature;
-                osimg2->pressure = ospr2->pressure;
                 this->pressure = ospr2->pressure;
-                osimg2->heading = ospr2->heading;
-                osimg2->pitch = ospr2->pitch;
-                osimg2->roll = ospr2->roll;
-                img = osimg2;
-
                 break;
             }
-
-            default:
-            {
-                OculusSonarImage *osimg = new OculusSonarImage();
-                osimg->pingStartTime = ospr->pingStartTime;
-                osimg->sonarFrequency = ospr->frequency;
+            default:{
                 this->operatingFrequency = ospr->frequency;
-                osimg->temperature = ospr->temperature;
                 this->temperature = ospr->temperature;
-                osimg->pressure = ospr->pressure;
                 this->pressure = ospr->pressure;
-                img = osimg;
                 break;
             }
         }
@@ -345,7 +326,7 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         for (uint16_t i = 0; i < callbacks->size(); i++)
         {
             cb = callbacks->at(i);
-            cb(this, img);
+            cb(this, lastImage);
         }
     }
     else
