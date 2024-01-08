@@ -132,9 +132,9 @@ public:
 
 protected:
     SonarState state;
-    std::vector<SonarCallback> *callbacks;
-    std::thread *callbackThread;
-    std::mutex *callbackMutex;
+    std::vector<SonarCallback> callbacks;
+    std::thread callbackThread;
+    std::mutex callbackMutex;
     std::shared_ptr<SonarImage> lastImage;
 
     bool callbackThreadStarted;

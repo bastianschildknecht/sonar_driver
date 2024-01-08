@@ -66,7 +66,7 @@ void OculusSonar::connect(const std::string& address){
         if (sonarTCPSocket->getState() == EZSocket::SocketState::Connected){
             sonarAddress = address;
             callbackThreadActive = true;
-            callbackThread = new std::thread([this] { this->invokeCallbacks(); });
+            callbackThread = std::thread([this] { this->invokeCallbacks(); });
             callbackThreadStarted = true;
             state = SonarState::Connected;
         }
@@ -76,9 +76,7 @@ void OculusSonar::connect(const std::string& address){
 void OculusSonar::disconnect(){
     if (callbackThreadStarted){
         callbackThreadActive = false;
-        callbackThread->join();
-        delete callbackThread;
-        callbackThread = nullptr;
+        callbackThread.join();
         callbackThreadStarted = false;
     }
     sonarUDPSocket->disconnect();
@@ -307,10 +305,10 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
 
         // New image ready, notify all callbacks
         SonarCallback cb;
-        std::lock_guard<std::mutex> lock(*callbackMutex);
-        for (uint16_t i = 0; i < callbacks->size(); i++)
+        std::lock_guard<std::mutex> lock(callbackMutex);
+        for (uint16_t i = 0; i < callbacks.size(); i++)
         {
-            cb = callbacks->at(i);
+            cb = callbacks.at(i);
             cb(lastImage);
         }
     }

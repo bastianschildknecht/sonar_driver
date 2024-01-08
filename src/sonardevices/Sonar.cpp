@@ -22,8 +22,6 @@ Sonar::Sonar(){
     gamma = 0;
     netSpeedLimit = 255;
     pingRate = 0;
-    callbacks = new std::vector<SonarCallback>();
-    callbackMutex = new std::mutex();
     callbackThreadStarted = false;
     callbackThreadActive = false;
     lastImage = std::make_shared<SonarImage>();
@@ -34,20 +32,14 @@ Sonar::~Sonar(){
     if (callbackThreadStarted)
     {
         callbackThreadActive = false;
-        callbackThread->join();
-        delete callbackThread;
-        callbackThread = nullptr;
+        callbackThread.join();
         callbackThreadStarted = false;
     }
-    delete callbacks;
-    callbacks = nullptr;
-    delete callbackMutex;
-    callbackMutex = nullptr;
 }
 
 void Sonar::registerCallback(SonarCallback callback){
-    std::lock_guard<std::mutex> lock(*callbackMutex);
-    callbacks->push_back(callback);
+    std::lock_guard<std::mutex> lock(callbackMutex);
+    callbacks.push_back(callback);
 }
 
 SonarState Sonar::getState(){
