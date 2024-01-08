@@ -193,67 +193,66 @@ void OculusSonar::invokeCallbacks(){
     {
         // Check for received data
         bytesAvailable = sonarTCPSocket->bytesAvailable();
-        if (bytesAvailable > 0)
-        {
-            // Check if buffer is big enough and expand if required
-            if (bytesAvailable > rxBuffSize - rxBuffPos)
-            {
-                rxBuffSize = bytesAvailable + rxBuffPos;
-                rxBuff = (uint8_t *)realloc(rxBuff, rxBuffSize);
-            }
-
-            bytesRead = sonarTCPSocket->readData(&rxBuff[rxBuffPos], bytesAvailable);
-            // Check for socket errors or disconnects
-            if (bytesRead < 0)
-            {
-                // Socket error or disconnect, exit thread
-                break;
-            }
-            rxBuffPos += bytesRead;
-
-            // Process received data
-            currPktSize = sizeof(OculusMessages::OculusMessageHeader);
-            if (rxBuffPos >= currPktSize)
-            {
-                OculusMessages::OculusMessageHeader *omh = (OculusMessages::OculusMessageHeader *)rxBuff;
-
-                // Check if data is valid via oculus ID
-                if (omh->oculusId != OCULUS_CHECK_ID)
-                {
-                    // Data invalid, flush buffer
-                    rxBuffPos = 0;
-                    continue;
-                }
-
-                currPktSize += omh->payloadSize;
-
-                // Check if payload is also in the buffer and process message
-                if (rxBuffPos >= currPktSize)
-                {
-                    // Check which message type was received
-                    switch (omh->msgId)
-                    {
-                    case OculusMessages::OculusMessageType::messageSimplePingResult:
-                        // Received result of ping
-                        processSimplePingResult((OculusMessages::OculusSimplePingResult *)omh);
-                        break;
-                    case OculusMessages::OculusMessageType::messageUserConfig:
-                        // Received user config
-                        break;
-                    case OculusMessages::OculusMessageType::messageDummy:
-                        // Received dummy message
-                        break;
-                    default:
-                        // Unrecognized message
-                        break;
-                    }
-
-                    // If there is additional data in buffer shift it to the front
-                    memmove(rxBuff, &rxBuff[currPktSize], rxBuffPos - currPktSize);
-                    rxBuffPos -= currPktSize;
-                }
-            }
+        if (bytesAvailable <= 0){
+            continue;
         }
+
+        // Check if buffer is big enough and expand if required
+        if (bytesAvailable > rxBuffSize - rxBuffPos){
+            rxBuffSize = bytesAvailable + rxBuffPos;
+            rxBuff = (uint8_t *)realloc(rxBuff, rxBuffSize);
+        }
+
+        bytesRead = sonarTCPSocket->readData(&rxBuff[rxBuffPos], bytesAvailable);
+        // Check for socket errors or disconnects
+        if (bytesRead < 0){
+            break;
+        }
+        rxBuffPos += bytesRead;
+
+        // Process received data
+        currPktSize = sizeof(OculusMessages::OculusMessageHeader);
+        if (rxBuffPos < currPktSize){
+            continue;
+        }
+        OculusMessages::OculusMessageHeader *omh = (OculusMessages::OculusMessageHeader *)rxBuff;
+
+        // Check if data is valid via oculus ID
+        if (omh->oculusId != OCULUS_CHECK_ID)
+        {
+            // Data invalid, flush buffer
+            rxBuffPos = 0;
+            continue;
+        }
+
+        currPktSize += omh->payloadSize;
+
+        // Check if payload is also in the buffer and process message
+        if (rxBuffPos < currPktSize){
+            continue;
+        }
+
+        // Check which message type was received
+        switch (omh->msgId){
+            case OculusMessages::OculusMessageType::messageSimplePingResult:
+                // Received result of ping
+                processSimplePingResult((OculusMessages::OculusSimplePingResult *)omh);
+                break;
+            case OculusMessages::OculusMessageType::messageUserConfig:
+                // Received user config
+                break;
+            case OculusMessages::OculusMessageType::messageDummy:
+                // Received dummy message
+                break;
+            default:
+                // Unrecognized message
+                break;
+        }
+
+        // If there is additional data in buffer shift it to the front
+        memmove(rxBuff, &rxBuff[currPktSize], rxBuffPos - currPktSize);
+        rxBuffPos -= currPktSize;
+    
     }
 
     // Free memory
@@ -297,62 +296,48 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
     this->rangeBinCount = ranges;
 
     // Check if image size is correct
-    if (ospr->fireMessage.head.payloadSize + sizeof(OculusMessages::OculusMessageHeader) == imageOffset + imageSize)
-    {
+    if (ospr->fireMessage.head.payloadSize + sizeof(OculusMessages::OculusMessageHeader) == imageOffset + imageSize){
         // Copy image into sonar image
         SonarImage *img;
 
-        switch (version)
-        {
-        case 2:
-        {
-            OculusSonarImage2 *osimg2 = new OculusSonarImage2();
-            osimg2->pingStartTime = ospr2->pingStartTime;
-            osimg2->sonarFrequency = ospr2->frequency;
-            this->operatingFrequency = ospr2->frequency;
-            osimg2->temperature = ospr2->temperature;
-            this->temperature = ospr2->temperature;
-            osimg2->pressure = ospr2->pressure;
-            this->pressure = ospr2->pressure;
-            osimg2->heading = ospr2->heading;
-            osimg2->pitch = ospr2->pitch;
-            osimg2->roll = ospr2->roll;
-            img = osimg2;
+        switch (version){
+            case 2:
+            {
+                OculusSonarImage2 *osimg2 = new OculusSonarImage2();
+                osimg2->pingStartTime = ospr2->pingStartTime;
+                osimg2->sonarFrequency = ospr2->frequency;
+                this->operatingFrequency = ospr2->frequency;
+                osimg2->temperature = ospr2->temperature;
+                this->temperature = ospr2->temperature;
+                osimg2->pressure = ospr2->pressure;
+                this->pressure = ospr2->pressure;
+                osimg2->heading = ospr2->heading;
+                osimg2->pitch = ospr2->pitch;
+                osimg2->roll = ospr2->roll;
+                img = osimg2;
 
-    
-            break;
+                break;
+            }
+
+            default:
+            {
+                OculusSonarImage *osimg = new OculusSonarImage();
+                osimg->pingStartTime = ospr->pingStartTime;
+                osimg->sonarFrequency = ospr->frequency;
+                this->operatingFrequency = ospr->frequency;
+                osimg->temperature = ospr->temperature;
+                this->temperature = ospr->temperature;
+                osimg->pressure = ospr->pressure;
+                this->pressure = ospr->pressure;
+                img = osimg;
+                break;
+            }
         }
 
-        default:
-        {
-            OculusSonarImage *osimg = new OculusSonarImage();
-            osimg->pingStartTime = ospr->pingStartTime;
-            osimg->sonarFrequency = ospr->frequency;
-            this->operatingFrequency = ospr->frequency;
-            osimg->temperature = ospr->temperature;
-            this->temperature = ospr->temperature;
-            osimg->pressure = ospr->pressure;
-            this->pressure = ospr->pressure;
-            img = osimg;
-            break;
-        }
-        }
+        memcpy(lastImage->bearingTable.get(), startAddress + 122, beams * sizeof(int16_t));
 
+        memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
 
-        delete[] img->bearingTable;
-        img->bearingTable = new int16_t[beams * sizeof(int16_t)];
-
-        memcpy(img->bearingTable, startAddress + 122, beams * sizeof(int16_t));
-
-
-        img->imageWidth = beams;
-        img->imageHeight = ranges;
-        img->data = new uint8_t[imageSize];
-        memcpy(img->data, startAddress + imageOffset, imageSize);
-
-        // Set last image pointer to new image and delete old one
-        delete lastImage;
-        lastImage = img;
 
         // New image ready, notify all callbacks
         SonarCallback cb;
@@ -374,7 +359,7 @@ std::vector<int16_t> OculusSonar::getBearingTable(){
     printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
     std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
-    std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
+    std::transform(lastImage->bearingTable.get(), lastImage->bearingTable.get() + n, bearingVector.begin(), [](int16_t bearing) {
         return bearing;
     });
     printf("sonardevices.cpp getBearingTable(): Finished transform\n");

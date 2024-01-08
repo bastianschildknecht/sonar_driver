@@ -136,18 +136,22 @@ protected:
     std::thread *callbackThread;
     std::mutex *callbackMutex;
     SonarImage *lastImage;
+
     bool callbackThreadStarted;
     volatile bool callbackThreadActive;
+
     int fireMode;
+    bool gainAssistActive;
+
     double currRange;
     double currGain;
     double speedOfSound;
     double salinity;
     double temperature;
     double pressure;
-    bool gainAssistActive;
     uint8_t gamma;
     uint8_t netSpeedLimit;
     int pingRate;
+    
     virtual void invokeCallbacks() = 0;
 };

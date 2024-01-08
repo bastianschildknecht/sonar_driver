@@ -2,7 +2,7 @@
 #include <sonar_driver/OculusDriverNode.h>
 
 
-OculusDriverNode::OculusDriverNode(const char *nodeName) : rclcpp::Node(nodeName){
+OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(nodeName){
 
     // Initialize publishers
     pub_img = this->create_publisher<sensor_msgs::msg::Image>("image", 10);
