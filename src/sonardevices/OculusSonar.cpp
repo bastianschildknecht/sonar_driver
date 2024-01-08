@@ -3,10 +3,10 @@
 
 
 OculusSonar::OculusSonar() : Sonar(){
+    sonarTCPSocket = std::make_shared<EZSocket::TCPSocket>();
+    sonarUDPSocket = std::make_shared<EZSocket::UDPSocket>();
+    sonarAddress = "empty";
     partNumber = OculusMessages::OculusPartNumberType::partNumberUndefined;
-    sonarTCPSocket = new EZSocket::TCPSocket();
-    sonarUDPSocket = new EZSocket::UDPSocket();
-    sonarAddress = new char[STR_ADDRESS_LEN];
     oculusPingRate = OculusMessages::PingRateType::pingRateStandby;
     operatingFrequency = 0.0;
     beams = 0;
@@ -15,12 +15,7 @@ OculusSonar::OculusSonar() : Sonar(){
 }
 
 OculusSonar::~OculusSonar(){
-    delete sonarTCPSocket;
-    sonarTCPSocket = nullptr;
-    delete sonarUDPSocket;
-    sonarUDPSocket = nullptr;
-    delete[] sonarAddress;
-    sonarAddress = nullptr;
+    
 }
 
 void OculusSonar::findAndConnect(){
@@ -63,14 +58,13 @@ OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpB
     return partNumber;
 }
 
-void OculusSonar::connect(const char *address){
-    if (sonarTCPSocket->getState() == EZSocket::SocketState::Ready)
-    {
+
+void OculusSonar::connect(const std::string& address){
+    if (sonarTCPSocket->getState() == EZSocket::SocketState::Ready){
         sonarTCPSocket->setReceiveBufferSize(200000);
         sonarTCPSocket->connectToHost(address, OCULUS_TCP_PORT);
-        if (sonarTCPSocket->getState() == EZSocket::SocketState::Connected)
-        {
-            strncpy(sonarAddress, address, STR_ADDRESS_LEN);
+        if (sonarTCPSocket->getState() == EZSocket::SocketState::Connected){
+            sonarAddress = address;
             callbackThreadActive = true;
             callbackThread = new std::thread([this] { this->invokeCallbacks(); });
             callbackThreadStarted = true;
@@ -80,8 +74,7 @@ void OculusSonar::connect(const char *address){
 }
 
 void OculusSonar::disconnect(){
-    if (callbackThreadStarted)
-    {
+    if (callbackThreadStarted){
         callbackThreadActive = false;
         callbackThread->join();
         delete callbackThread;
@@ -90,12 +83,10 @@ void OculusSonar::disconnect(){
     }
     sonarUDPSocket->disconnect();
     sonarTCPSocket->disconnect();
-    if (sonarUDPSocket->getState() == EZSocket::SocketState::Ready && sonarTCPSocket->getState() == EZSocket::SocketState::Ready)
-    {
+    if (sonarUDPSocket->getState() == EZSocket::SocketState::Ready && sonarTCPSocket->getState() == EZSocket::SocketState::Ready){
         state = SonarState::Ready;
     }
-    else
-    {
+    else{
         state = SonarState::SocketError;
     }
 }
@@ -112,33 +103,27 @@ void OculusSonar::configure(int mode, double range, double gain, double speedOfS
 }
 
 uint8_t OculusSonar::setPingRate(uint8_t frequency){
-    if (frequency == 0)
-    {
+    if (frequency == 0){
         pingRate = 0;
         oculusPingRate = OculusMessages::PingRateType::pingRateStandby;
     }
-    else if (frequency <= 2)
-    {
+    else if (frequency <= 2){
         pingRate = 2;
         oculusPingRate = OculusMessages::PingRateType::pingRateLowest;
     }
-    else if (frequency <= 5)
-    {
+    else if (frequency <= 5) {
         pingRate = 5;
         oculusPingRate = OculusMessages::PingRateType::pingRateLow;
     }
-    else if (frequency <= 10)
-    {
+    else if (frequency <= 10){
         pingRate = 10;
         oculusPingRate = OculusMessages::PingRateType::pingRateNormal;
     }
-    else if (frequency <= 15)
-    {
+    else if (frequency <= 15){
         pingRate = 15;
         oculusPingRate = OculusMessages::PingRateType::pingRateHigh;
     }
-    else
-    {
+    else{
         pingRate = 40;
         oculusPingRate = OculusMessages::PingRateType::pingRateHighest;
     }
@@ -347,7 +332,7 @@ std::vector<int16_t> OculusSonar::getBearingTable(){
     return bearingVector;
 }
 
-const char *OculusSonar::getLocation(){
+const std::string& OculusSonar::getLocation(){
     return sonarAddress;
 }
 

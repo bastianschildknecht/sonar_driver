@@ -61,7 +61,7 @@ Socket::~Socket()
 #endif
 }
 
-void Socket::connectToHost(const char *address, uint16_t port)
+void Socket::connectToHost(const std::string& address, uint16_t port)
 {
     mutex->lock();
     if (state == SocketState::Ready)
@@ -69,7 +69,7 @@ void Socket::connectToHost(const char *address, uint16_t port)
         host_addr.sin_family = AF_INET;
         host_addr.sin_port = htons(port);
 
-        if (inet_pton(AF_INET, address, &host_addr.sin_addr) <= 0)
+        if (inet_pton(AF_INET, address.c_str(), &host_addr.sin_addr) <= 0)
         {
             state = SocketState::AddressError;
             mutex->unlock();
@@ -103,7 +103,7 @@ void Socket::disconnect()
     mutex->unlock();
 }
 
-void Socket::bindToAddress(const char *address, uint16_t port)
+void Socket::bindToAddress(const std::string& address, uint16_t port)
 {
     mutex->lock();
     if (state == SocketState::Ready)
@@ -112,7 +112,7 @@ void Socket::bindToAddress(const char *address, uint16_t port)
         server_addr.sin_port = htons(port);
 
         // Load address
-        if (strncmp(address, "ANY", 16) == 0)
+        if (strncmp(address.c_str(), "ANY", 16) == 0)
         {
 #ifdef _WIN32
             server_addr.sin_addr.S_un.S_addr = INADDR_ANY;
@@ -122,7 +122,7 @@ void Socket::bindToAddress(const char *address, uint16_t port)
         }
         else
         {
-            if (inet_pton(AF_INET, address, &server_addr.sin_addr) <= 0)
+            if (inet_pton(AF_INET, address.c_str(), &server_addr.sin_addr) <= 0)
             {
                 state = SocketState::AddressError;
                 mutex->unlock();
@@ -162,7 +162,7 @@ int32_t Socket::readData(void *buffer, int32_t maxLength)
     }
 }
 
-int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, char *addressBuffer, size_t bufferLength)
+int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, std::string& addressBuffer, size_t bufferLength)
 {
     mutex->lock();
     if (state == SocketState::Bound)
@@ -177,8 +177,11 @@ int32_t Socket::waitForDataAndAddress(void *buffer, int32_t maxLength, char *add
 
         if (bufferLength >= INET_ADDRSTRLEN)
         {
-            inet_ntop(AF_INET, &src_addr.sin_addr, addressBuffer, bufferLength);
+            char* addressBufferPtr = &addressBuffer[0];
+            inet_ntop(AF_INET, &src_addr.sin_addr, addressBufferPtr, bufferLength);
         }
+
+
         mutex->unlock();
         return ret;
     }

@@ -33,7 +33,7 @@ public:
     virtual void findAndConnect() = 0;
 
     // Connect to sonar at specified IPv4 address (blocking)
-    virtual void connect(const char *address) = 0;
+    virtual void connect(const std::string& address) = 0;
 
     // Disconnect from sonar (blocking)
     virtual void disconnect() = 0;
@@ -59,7 +59,7 @@ public:
     virtual SonarState getState();
 
     // Get a string describing the current address or interface location of the sonar
-    virtual const char *getLocation() = 0;
+    virtual const std::string& getLocation() = 0;
 
     // Get the current fire mode of the sonar device
     virtual uint8_t getFireMode();
@@ -152,6 +152,6 @@ protected:
     uint8_t gamma;
     uint8_t netSpeedLimit;
     int pingRate;
-    
+
     virtual void invokeCallbacks() = 0;
 };

@@ -5,6 +5,7 @@
 #include <sonar_driver/sonardevices/OculusSonarImage.h>
 
 #include <memory.h>
+#include <string.h>
 
 #define SONAR_READ_BUFFER_SIZE 200000
 #define SONAR_WRITE_BUFFER_SIZE 200000
@@ -19,7 +20,7 @@ public:
     ~OculusSonar();
 
     void findAndConnect() override;
-    void connect(const char *address) override;
+    void connect(const std::string& address) override;
     void disconnect() override;
 
     void configure(int mode, double range, double gain, double speedOfSound, double salinity, bool gainAssist, uint8_t gamma, uint8_t netSpeedLimit) override;
@@ -27,7 +28,7 @@ public:
 
     void fire() override;
 
-    const char *getLocation() override;
+    const std::string& getLocation() override;
     double getOperatingFrequency() override;
     double getBeamSeparation() override;
     double getMinimumRange() override;
@@ -42,15 +43,17 @@ public:
     std::vector<int16_t> getBearingTable() override;
 
 protected:
+    std::shared_ptr<EZSocket::Socket> sonarUDPSocket;
+    std::shared_ptr<EZSocket::Socket> sonarTCPSocket;
+    std::string sonarAddress;
+
     OculusMessages::OculusPartNumberType partNumber;
-    EZSocket::Socket *sonarUDPSocket;
-    EZSocket::Socket *sonarTCPSocket;
-    char *sonarAddress;
     OculusMessages::PingRateType oculusPingRate;
+
     double operatingFrequency;
+    double rangeResolution;
     uint16_t beams;
     uint32_t rangeBinCount;
-    double rangeResolution;
 
     virtual void invokeCallbacks() override;
     void processSimplePingResult(OculusMessages::OculusSimplePingResult *msg);
