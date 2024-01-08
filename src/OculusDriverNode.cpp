@@ -132,10 +132,9 @@ void OculusDriverNode::cb_reconfiguration(const sonar_driver_interfaces::msg::So
 /// @brief Method to execute upon receival of a simplePingResult Message 
 /// @param sonar 
 /// @param image 
-void OculusDriverNode::cb_simplePingResult(Sonar *sonar, SonarImage *image){
+void OculusDriverNode::cb_simplePingResult(std::shared_ptr<SonarImage> image){
     publishImage(*image);
     publishCurrentConfig();
-    std::cout << sonar << std::endl;
 }
 
 
@@ -155,8 +154,8 @@ int main(int argc, char **argv){
     node->sonar_->configure(2, 5.0, 80.0, 0.0, 0.0, false, 255, 0xff);
     node->sonar_->setPingRate(40);
     
-    SonarCallback callback = [&node](Sonar *sonar, SonarImage *image) -> void {
-        node->cb_simplePingResult(sonar, image);
+    SonarCallback callback = [&node](std::shared_ptr<SonarImage> image) -> void {
+        node->cb_simplePingResult(image);
     };
 
     // Register the callback

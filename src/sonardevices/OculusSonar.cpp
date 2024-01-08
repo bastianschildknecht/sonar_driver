@@ -311,7 +311,7 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         for (uint16_t i = 0; i < callbacks->size(); i++)
         {
             cb = callbacks->at(i);
-            cb(this, lastImage);
+            cb(lastImage);
         }
     }
     else

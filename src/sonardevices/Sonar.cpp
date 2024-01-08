@@ -26,7 +26,7 @@ Sonar::Sonar(){
     callbackMutex = new std::mutex();
     callbackThreadStarted = false;
     callbackThreadActive = false;
-    lastImage = new SonarImage();
+    lastImage = std::make_shared<SonarImage>();
     state = SonarState::Ready;
 }
 
@@ -43,8 +43,6 @@ Sonar::~Sonar(){
     callbacks = nullptr;
     delete callbackMutex;
     callbackMutex = nullptr;
-    delete lastImage;
-    lastImage = nullptr;
 }
 
 void Sonar::registerCallback(SonarCallback callback){

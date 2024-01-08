@@ -38,7 +38,7 @@ public:
     rclcpp::Publisher<sonar_driver_interfaces::msg::SonarBearings>::SharedPtr pub_bearings;
     rclcpp::Subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>::SharedPtr sub_reconfiguration;
 
-    void cb_simplePingResult(Sonar *sonar, SonarImage *image);
+    void cb_simplePingResult(std::shared_ptr<SonarImage> image);
 
 protected:
 

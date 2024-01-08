@@ -20,7 +20,7 @@ enum SonarState
 
 
 class Sonar;
-using SonarCallback = std::function<void(Sonar*, SonarImage*)>;
+using SonarCallback = std::function<void(std::shared_ptr<SonarImage>)>;
 // typedef void (*SonarCallback)(Sonar *sonar, SonarImage *sonarImage);
 
 class Sonar
@@ -135,7 +135,7 @@ protected:
     std::vector<SonarCallback> *callbacks;
     std::thread *callbackThread;
     std::mutex *callbackMutex;
-    SonarImage *lastImage;
+    std::shared_ptr<SonarImage> lastImage;
 
     bool callbackThreadStarted;
     volatile bool callbackThreadActive;
