@@ -1,156 +1,20 @@
-// File: sonardevices.cxx
 
-#include <vector>
-#include <cstring>
-#include <memory.h>
-#include <sonar_driver/ezsocket/ezsocket.hxx>
-#include <sonar_driver/sonardevices/sonardevices.hxx>
-#include <sonar_driver/sonardevices/oculusMessages.hxx>
-
-#include <iostream>
-
-using namespace EZSocket;
-using namespace SonarDevices;
-using namespace OculusMessages;
-
-Sonar::Sonar()
-{
-    fireMode = 1;
-    currRange = 20.0;
-    currGain = 1.0;
-    speedOfSound = 0.0;
-    salinity = 0.0;
-    temperature = 0.0;
-    pressure = 0.0;
-    gainAssistActive = false;
-    gamma = 0;
-    netSpeedLimit = 255;
-    pingRate = 0;
-    callbacks = new std::vector<SonarCallback>();
-    callbackMutex = new std::mutex();
-    callbackThreadStarted = false;
-    callbackThreadActive = false;
-    lastImage = new SonarImage();
-    state = SonarState::Ready;
-}
-
-Sonar::~Sonar()
-{
-    if (callbackThreadStarted)
-    {
-        callbackThreadActive = false;
-        callbackThread->join();
-        delete callbackThread;
-        callbackThread = nullptr;
-        callbackThreadStarted = false;
-    }
-    delete callbacks;
-    callbacks = nullptr;
-    delete callbackMutex;
-    callbackMutex = nullptr;
-    delete lastImage;
-    lastImage = nullptr;
-}
-
-void Sonar::registerCallback(SonarCallback callback)
-{
-    std::lock_guard<std::mutex> lock(*callbackMutex);
-    callbacks->push_back(callback);
-}
-
-SonarState Sonar::getState()
-{
-    return state;
-}
-
-SonarImage Sonar::getLastImage()
-{
-    return *lastImage;
-}
-
-uint8_t Sonar::getFireMode()
-{
-    return fireMode;
-}
-
-uint8_t Sonar::getPingRate()
-{
-    return pingRate;
-}
-
-double Sonar::getCurrentRange()
-{
-    return currRange;
-}
-
-double Sonar::getCurrentGain()
-{
-    return currGain;
-}
-
-bool Sonar::gainAssistEnabled()
-{
-    return gainAssistActive;
-}
-
-uint8_t Sonar::getGamma()
-{
-    return gamma;
-}
-
-double Sonar::getSpeedOfSound()
-{
-    return speedOfSound;
-}
-
-double Sonar::getSalinity()
-{
-    return salinity;
-}
-
-double Sonar::getTemperature()
-{
-    return temperature;
-}
-
-double Sonar::getPressure()
-{
-    return pressure;
-}
-
-uint8_t Sonar::getNetworkSpeedLimit()
-{
-    return netSpeedLimit;
-}
+#include <sonar_driver/sonardevices/OculusSonar.h>
 
 
-std::vector<int16_t> Sonar::getBearingTable()
-{
-    printf("sonardevices.cpp getBearingTable(): Starting transform\n");
-    int n = lastImage->imageWidth;
-    std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
-    std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
-        return bearing;
-    });
-    printf("sonardevices.cpp getBearingTable(): Finished transform\n");
-    return bearingVector;
-}
-
-OculusSonar::OculusSonar() : Sonar()
-{
-    partNumber = OculusPartNumberType::partNumberUndefined;
-    sonarTCPSocket = new TCPSocket();
-    sonarUDPSocket = new UDPSocket();
+OculusSonar::OculusSonar() : Sonar(){
+    partNumber = OculusMessages::OculusPartNumberType::partNumberUndefined;
+    sonarTCPSocket = new EZSocket::TCPSocket();
+    sonarUDPSocket = new EZSocket::UDPSocket();
     sonarAddress = new char[STR_ADDRESS_LEN];
-    oculusPingRate = PingRateType::pingRateStandby;
+    oculusPingRate = OculusMessages::PingRateType::pingRateStandby;
     operatingFrequency = 0.0;
     beams = 0;
     rangeBinCount = 0;
     rangeResolution = 0.0;
 }
 
-OculusSonar::~OculusSonar()
-{
+OculusSonar::~OculusSonar(){
     delete sonarTCPSocket;
     sonarTCPSocket = nullptr;
     delete sonarUDPSocket;
@@ -159,18 +23,17 @@ OculusSonar::~OculusSonar()
     sonarAddress = nullptr;
 }
 
-void OculusSonar::findAndConnect()
-{
-    if (sonarUDPSocket->getState() == SocketState::Ready)
+void OculusSonar::findAndConnect(){
+    if (sonarUDPSocket->getState() == EZSocket::SocketState::Ready)
     {
         sonarUDPSocket->bindToAddress("ANY", OCULUS_UDP_PORT);
-        if (sonarUDPSocket->getState() == SocketState::Bound)
+        if (sonarUDPSocket->getState() == EZSocket::SocketState::Bound)
         {
             char *buf = new char[256];
             if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0)
             {
                 this->partNumber = determinePartNumber(buf);
-                connect(sonarAddress);
+                this->connect(sonarAddress);
             }
             delete[] buf;
             buf = nullptr;
@@ -178,36 +41,34 @@ void OculusSonar::findAndConnect()
     }
 }
 
-OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpBroadcastMessage)
-{
+OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpBroadcastMessage){
     // First check if the message is a valid Oculus message
     // The first two bytes should containt the Oculus Check ID
     uint16_t checkID = *(uint16_t *)udpBroadcastMessage;
     if (checkID != OCULUS_CHECK_ID)
     {
-        return OculusPartNumberType::partNumberUndefined;
+        return OculusMessages::OculusPartNumberType::partNumberUndefined;
     }
 
     // The UDP broadcast message contains a OculusMessageHeader as
     // the first part of the message.
-    OculusMessageHeader *oculusMessageHeader = (OculusMessageHeader *)udpBroadcastMessage;
+    OculusMessages::OculusMessageHeader *oculusMessageHeader = (OculusMessages::OculusMessageHeader *)udpBroadcastMessage;
 
     // The spare2 field contains the part number.
     uint16_t numericPartNumber = oculusMessageHeader->spare2;
 
     // Cast the short to a OculusPartNumberType
-    OculusPartNumberType partNumber = static_cast<OculusPartNumberType>(numericPartNumber);
+    OculusMessages::OculusPartNumberType partNumber = static_cast<OculusMessages::OculusPartNumberType>(numericPartNumber);
 
     return partNumber;
 }
 
-void OculusSonar::connect(const char *address)
-{
-    if (sonarTCPSocket->getState() == SocketState::Ready)
+void OculusSonar::connect(const char *address){
+    if (sonarTCPSocket->getState() == EZSocket::SocketState::Ready)
     {
         sonarTCPSocket->setReceiveBufferSize(200000);
         sonarTCPSocket->connectToHost(address, OCULUS_TCP_PORT);
-        if (sonarTCPSocket->getState() == SocketState::Connected)
+        if (sonarTCPSocket->getState() == EZSocket::SocketState::Connected)
         {
             strncpy(sonarAddress, address, STR_ADDRESS_LEN);
             callbackThreadActive = true;
@@ -218,8 +79,7 @@ void OculusSonar::connect(const char *address)
     }
 }
 
-void OculusSonar::disconnect()
-{
+void OculusSonar::disconnect(){
     if (callbackThreadStarted)
     {
         callbackThreadActive = false;
@@ -230,7 +90,7 @@ void OculusSonar::disconnect()
     }
     sonarUDPSocket->disconnect();
     sonarTCPSocket->disconnect();
-    if (sonarUDPSocket->getState() == SocketState::Ready && sonarTCPSocket->getState() == SocketState::Ready)
+    if (sonarUDPSocket->getState() == EZSocket::SocketState::Ready && sonarTCPSocket->getState() == EZSocket::SocketState::Ready)
     {
         state = SonarState::Ready;
     }
@@ -240,8 +100,7 @@ void OculusSonar::disconnect()
     }
 }
 
-void OculusSonar::configure(int mode, double range, double gain, double speedOfSound, double salinity, bool gainAssist, uint8_t gamma, uint8_t netSpeedLimit)
-{
+void OculusSonar::configure(int mode, double range, double gain, double speedOfSound, double salinity, bool gainAssist, uint8_t gamma, uint8_t netSpeedLimit){
     fireMode = mode;
     currRange = range;
     currGain = gain;
@@ -252,47 +111,45 @@ void OculusSonar::configure(int mode, double range, double gain, double speedOfS
     this->netSpeedLimit = netSpeedLimit;
 }
 
-uint8_t OculusSonar::setPingRate(uint8_t frequency)
-{
+uint8_t OculusSonar::setPingRate(uint8_t frequency){
     if (frequency == 0)
     {
         pingRate = 0;
-        oculusPingRate = PingRateType::pingRateStandby;
+        oculusPingRate = OculusMessages::PingRateType::pingRateStandby;
     }
     else if (frequency <= 2)
     {
         pingRate = 2;
-        oculusPingRate = PingRateType::pingRateLowest;
+        oculusPingRate = OculusMessages::PingRateType::pingRateLowest;
     }
     else if (frequency <= 5)
     {
         pingRate = 5;
-        oculusPingRate = PingRateType::pingRateLow;
+        oculusPingRate = OculusMessages::PingRateType::pingRateLow;
     }
     else if (frequency <= 10)
     {
         pingRate = 10;
-        oculusPingRate = PingRateType::pingRateNormal;
+        oculusPingRate = OculusMessages::PingRateType::pingRateNormal;
     }
     else if (frequency <= 15)
     {
         pingRate = 15;
-        oculusPingRate = PingRateType::pingRateHigh;
+        oculusPingRate = OculusMessages::PingRateType::pingRateHigh;
     }
     else
     {
         pingRate = 40;
-        oculusPingRate = PingRateType::pingRateHighest;
+        oculusPingRate = OculusMessages::PingRateType::pingRateHighest;
     }
     return pingRate;
 }
 
-void OculusSonar::fire()
-{
-    OculusSimpleFireMessage sfm;
-    memset(&sfm, 0, sizeof(OculusSimpleFireMessage));
+void OculusSonar::fire(){
+    OculusMessages::OculusSimpleFireMessage sfm;
+    memset(&sfm, 0, sizeof(OculusMessages::OculusSimpleFireMessage));
 
-    sfm.head.msgId = OculusMessageType::messageSimpleFire;
+    sfm.head.msgId = OculusMessages::OculusMessageType::messageSimpleFire;
     sfm.head.srcDeviceId = 0;
     sfm.head.dstDeviceId = 0;
     sfm.head.oculusId = OCULUS_CHECK_ID;
@@ -317,11 +174,12 @@ void OculusSonar::fire()
     sfm.speedOfSound = speedOfSound;
     sfm.salinity = salinity;
 
-    sonarTCPSocket->writeData(&sfm, sizeof(OculusSimpleFireMessage));
+    sonarTCPSocket->writeData(&sfm, sizeof(OculusMessages::OculusSimpleFireMessage));
 }
 
-void OculusSonar::invokeCallbacks()
-{
+
+/// @brief Central function processing all new available bytes on the thread it was created on
+void OculusSonar::invokeCallbacks(){
 
     uint64_t bytesAvailable;
     uint64_t rxBuffSize = 2048;
@@ -354,10 +212,10 @@ void OculusSonar::invokeCallbacks()
             rxBuffPos += bytesRead;
 
             // Process received data
-            currPktSize = sizeof(OculusMessageHeader);
+            currPktSize = sizeof(OculusMessages::OculusMessageHeader);
             if (rxBuffPos >= currPktSize)
             {
-                OculusMessageHeader *omh = (OculusMessageHeader *)rxBuff;
+                OculusMessages::OculusMessageHeader *omh = (OculusMessages::OculusMessageHeader *)rxBuff;
 
                 // Check if data is valid via oculus ID
                 if (omh->oculusId != OCULUS_CHECK_ID)
@@ -375,14 +233,14 @@ void OculusSonar::invokeCallbacks()
                     // Check which message type was received
                     switch (omh->msgId)
                     {
-                    case OculusMessageType::messageSimplePingResult:
+                    case OculusMessages::OculusMessageType::messageSimplePingResult:
                         // Received result of ping
-                        processSimplePingResult((OculusSimplePingResult *)omh);
+                        processSimplePingResult((OculusMessages::OculusSimplePingResult *)omh);
                         break;
-                    case OculusMessageType::messageUserConfig:
+                    case OculusMessages::OculusMessageType::messageUserConfig:
                         // Received user config
                         break;
-                    case OculusMessageType::messageDummy:
+                    case OculusMessages::OculusMessageType::messageDummy:
                         // Received dummy message
                         break;
                     default:
@@ -403,8 +261,7 @@ void OculusSonar::invokeCallbacks()
     rxBuff = nullptr;
 }
 
-void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
-{
+void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult *ospr){
     uint8_t *startAddress = (uint8_t *)ospr;
 
     uint32_t imageSize;
@@ -414,7 +271,7 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
 
     uint16_t version = ospr->fireMessage.head.msgVersion;
     
-    OculusSimplePingResult2 *ospr2 = (OculusSimplePingResult2 *)ospr;
+    OculusMessages::OculusSimplePingResult2 *ospr2 = (OculusMessages::OculusSimplePingResult2 *)ospr;
 
     // Check message version
     switch (version)
@@ -440,7 +297,7 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
     this->rangeBinCount = ranges;
 
     // Check if image size is correct
-    if (ospr->fireMessage.head.payloadSize + sizeof(OculusMessageHeader) == imageOffset + imageSize)
+    if (ospr->fireMessage.head.payloadSize + sizeof(OculusMessages::OculusMessageHeader) == imageOffset + imageSize)
     {
         // Copy image into sonar image
         SonarImage *img;
@@ -480,12 +337,7 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
             break;
         }
         }
-        
-        // if (img->bearingTable == NULL) {
-        //     img->bearingTable = (int16_t*)malloc(beams * sizeof(int16_t));
-        // }else{
-        //     img->bearingTable = (int16_t*) realloc(img->bearingTable, beams * sizeof(int16_t));
-        // }
+
 
         delete[] img->bearingTable;
         img->bearingTable = new int16_t[beams * sizeof(int16_t)];
@@ -517,36 +369,44 @@ void OculusSonar::processSimplePingResult(OculusSimplePingResult *ospr)
     }
 }
 
-const char *OculusSonar::getLocation()
-{
+
+std::vector<int16_t> OculusSonar::getBearingTable(){
+    printf("sonardevices.cpp getBearingTable(): Starting transform\n");
+    int n = lastImage->imageWidth;
+    std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
+    std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
+        return bearing;
+    });
+    printf("sonardevices.cpp getBearingTable(): Finished transform\n");
+    return bearingVector;
+}
+
+const char *OculusSonar::getLocation(){
     return sonarAddress;
 }
 
-double OculusSonar::getOperatingFrequency()
-{
+double OculusSonar::getOperatingFrequency(){
     return operatingFrequency;
 }
 
-uint16_t OculusSonar::getBeamCount()
-{
+uint16_t OculusSonar::getBeamCount(){
     return beams;
 }
 
-double OculusSonar::getBeamSeparation()
-{
+double OculusSonar::getBeamSeparation(){
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
             return 0.5;
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             return 0.25;
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             {
                 if (fireMode == 1) // Low frequency
                     return 0.25;
@@ -560,21 +420,20 @@ double OculusSonar::getBeamSeparation()
     return 0.0;
 }
 
-double OculusSonar::getMinimumRange()
-{
+double OculusSonar::getMinimumRange(){
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
             return 0.2;
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             return 0.1;
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             return 0.1;
         default:
             break; // Unknown part number -> Cannot determine minimum range
@@ -582,17 +441,16 @@ double OculusSonar::getMinimumRange()
     return 0.0;
 }
 
-double OculusSonar::getMaximumRange()
-{
+double OculusSonar::getMaximumRange(){
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
             return 200.0;
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             {
                 if (fireMode == 1) // Low frequency
                     return 120.0;
@@ -600,9 +458,9 @@ double OculusSonar::getMaximumRange()
                     return 40.0;
                 break; // Unknown fire mode -> Cannot determine maximum range for M750d
             }
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             {
                 if (fireMode == 1) // Low frequency
                     return 40.0;
@@ -616,30 +474,27 @@ double OculusSonar::getMaximumRange()
     return 0.0;
 }
 
-double OculusSonar::getRangeResolution()
-{
+double OculusSonar::getRangeResolution(){
     return rangeResolution;
 }
 
-uint32_t OculusSonar::getRangeBinCount()
-{
+uint32_t OculusSonar::getRangeBinCount(){
     return rangeBinCount;
 }
 
-double OculusSonar::getHorzFOV()
-{
+double OculusSonar::getHorzFOV(){
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             return 130.0;
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             {
                 if (fireMode == 1) // Low frequency
                     return 130.0;
@@ -653,20 +508,19 @@ double OculusSonar::getHorzFOV()
     return 0.0;
 }
 
-double OculusSonar::getVertFOV()
-{
+double OculusSonar::getVertFOV(){
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             return 20.0;
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             {
                 if (fireMode == 1) // Low frequency
                     return 20.0;
@@ -680,17 +534,16 @@ double OculusSonar::getVertFOV()
     return 0.0;
 }
 
-double OculusSonar::getAngularResolution()
-{
+double OculusSonar::getAngularResolution(){
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
-        case OculusPartNumberType::partNumberM370s_Artemis:
-        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
             return 0.2;
-        case OculusPartNumberType::partNumberM750d:
-        case OculusPartNumberType::partNumberM750d_Artemis:
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             {
                 if (fireMode == 1) // Low frequency
                     return 1.0;
@@ -698,9 +551,9 @@ double OculusSonar::getAngularResolution()
                     return 0.6;
                 break; // Unknown fire mode -> Cannot determine angular resolution for M750d
             }
-        case OculusPartNumberType::partNumberM1200d:
-        case OculusPartNumberType::partNumberM1200d_Artemis:
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             {
                 if (fireMode == 1) // Low frequency
                     return 0.6;
@@ -717,79 +570,25 @@ double OculusSonar::getAngularResolution()
 std::string OculusSonar::getDeviceName() {
     switch (partNumber)
     {
-        case OculusPartNumberType::partNumberM370s:
+        case OculusMessages::OculusPartNumberType::partNumberM370s:
             return "Oculus M370s";
-        case OculusPartNumberType::partNumberM370s_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Artemis:
             return "Oculus M370s-Artemis";
-        case OculusPartNumberType::partNumberM370s_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM370s_Deep:
             return "Oculus M370s-Deep";
-        case OculusPartNumberType::partNumberM750d:
+        case OculusMessages::OculusPartNumberType::partNumberM750d:
             return "Oculus M750d";
-        case OculusPartNumberType::partNumberM750d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Artemis:
             return "Oculus M750d-Artemis";
-        case OculusPartNumberType::partNumberM750d_Fusion:
+        case OculusMessages::OculusPartNumberType::partNumberM750d_Fusion:
             return "Oculus M750d-Fusion";
-        case OculusPartNumberType::partNumberM1200d:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d:
             return "Oculus M1200d";
-        case OculusPartNumberType::partNumberM1200d_Artemis:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Artemis:
             return "Oculus M1200d-Artemis";
-        case OculusPartNumberType::partNumberM1200d_Deep:
+        case OculusMessages::OculusPartNumberType::partNumberM1200d_Deep:
             return "Oculus M1200d-Deep";
         default:
             return "Unknown Oculus Sonar";
     }
-}
-
-OculusM1200d::OculusM1200d() : OculusSonar()
-{
-}
-
-OculusM1200d::~OculusM1200d()
-{
-}
-
-SonarImage::SonarImage()
-{
-    imageType = SonarImageType::SonarImageObject;
-    imageHeight = 0;
-    imageWidth = 0;
-    data = nullptr;
-}
-
-SonarImage::~SonarImage()
-{
-    if (data != nullptr)
-    {
-        delete[] data;
-        data = nullptr;
-    }
-}
-
-OculusSonarImage::OculusSonarImage() : SonarImage()
-{
-    imageType = SonarImageType::OculusSonarImageObject;
-    pingStartTime = 0;
-    sonarFrequency = 0;
-    temperature = 0;
-    pressure = 0;
-}
-
-OculusSonarImage::~OculusSonarImage()
-{
-}
-
-OculusSonarImage2::OculusSonarImage2() : SonarImage()
-{
-    imageType = SonarImageType::OculusSonarImage2Object;
-    pingStartTime = 0;
-    sonarFrequency = 0;
-    temperature = 0;
-    pressure = 0;
-    heading = 0;
-    pitch = 0;
-    roll = 0;
-}
-
-OculusSonarImage2::~OculusSonarImage2()
-{
 }

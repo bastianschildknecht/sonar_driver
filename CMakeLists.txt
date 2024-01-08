@@ -18,32 +18,38 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sonar_driver_interfaces REQUIRED)
 
-# ezsocket
+include_directories(include)
+
+# ==================================================================== ezsocket
 add_library(ezsocket 
-  src/sonar_driver/ezsocket/ezsocket.cxx 
-  src/sonar_driver/ezsocket/socketWorker.cxx
+  src/ezsocket/ezsocket.cxx 
+  src/ezsocket/socketWorker.cxx
 )
 if (WIN32)
 target_link_libraries(ezsocket wsock32 ws2_32)
 endif (WIN32)
-
 target_include_directories(ezsocket PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:include>)# 
 
-# sonardevices
-add_library(sonardevices src/
-  src/sonar_driver/sonardevices/sonardevices.cxx
+# ==================================================================== sonardevices
+
+
+add_library(sonardevices 
+  src/sonardevices/Sonar.cpp
+  src/sonardevices/OculusSonar.cpp
+  src/sonardevices/OculusMessages.cpp
+  src/sonardevices/OculusSonarImage.cpp
+  src/sonardevices/SonarImage.cpp
 )
 target_link_libraries(sonardevices ezsocket)
-
 target_include_directories(sonardevices PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-# oculusDriver
+# ==================================================================== oculusDriver
 add_library(oculusDriver src/
-  src/sonar_driver/oculusDriver/oculusDriverNode.cxx
+  src/OculusDriverNode.cpp
 )
 ament_target_dependencies(oculusDriver
   rclcpp
@@ -51,25 +57,30 @@ ament_target_dependencies(oculusDriver
   sensor_msgs
   geometry_msgs
   sonar_driver_interfaces)
-
 target_include_directories(oculusDriver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-# oculus driver node
-add_executable(oculus_driver src/oculus_driver.cxx)
-target_link_libraries(oculus_driver sonardevices oculusDriver)
-ament_target_dependencies(oculus_driver 
+include_directories(
+  include/sonar_driver/sonardevices
+)
+
+# ===================================================================== Node
+add_executable(OculusDriverNode src/OculusDriverNode.cpp)
+target_link_libraries(OculusDriverNode ezsocket sonardevices)
+ament_target_dependencies(OculusDriverNode 
   rclcpp
   std_msgs
   sensor_msgs
   geometry_msgs
+  sonar_driver_interfaces
 )
-target_include_directories(oculus_driver PUBLIC
+target_include_directories(OculusDriverNode PUBLIC
+  include/sonar_driver
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-install(TARGETS oculus_driver
+install(TARGETS OculusDriverNode
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME})
 

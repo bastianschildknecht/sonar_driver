@@ -165,7 +165,7 @@ void SocketWorker::worker()
             sendSize = socket->writeData(sendBuff, readyBytes);
 
             // Check for socket errors
-            if (sendSize != readyBytes)
+            if (sendSize != static_cast<int32_t>(readyBytes))
             {
                 // Socket problem, stop thread
                 break;

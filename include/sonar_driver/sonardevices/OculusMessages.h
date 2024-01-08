@@ -1,4 +1,3 @@
-// File: oculusMessages.hxx
 
 /******************************************************************************
  * Part of this file is taken from Blueprint Subsea's Oculus Viewer software
@@ -23,9 +22,7 @@
  * *****
  *
  *****************************************************************************/
-
-#ifndef OCULUSMESSAGES_HXX
-#define OCULUSMESSAGES_HXX
+#pragma once 
 
 #include <cstdint>
 
@@ -239,5 +236,3 @@ namespace OculusMessages
 } // namespace OculusMessages
 
 #pragma pack(pop)
-
-#endif
