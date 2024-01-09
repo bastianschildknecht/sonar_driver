@@ -12,6 +12,10 @@ OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(n
     pub_configuration = this->create_publisher<sonar_driver_interfaces::msg::SonarConfiguration>("configuration", 10);
     pub_bearings = this->create_publisher<sonar_driver_interfaces::msg::SonarBearings>("bearings", 10);
 
+    msg_img_raw = new sensor_msgs::msg::Image();
+
+    updateCommonHeader();
+
     sub_reconfiguration = this->create_subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>(
         "reconfigure", 10, std::bind(&OculusDriverNode::cb_reconfiguration, this, std::placeholders::_1)
     );
@@ -19,25 +23,26 @@ OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(n
 }
 
 
-void OculusDriverNode::publishImage(SonarImage &image){
-    sensor_msgs::msg::Image msg_img;
-
-    msg_img.encoding = "mono8";
-    msg_img.is_bigendian = false;
+void OculusDriverNode::publishImage(std::shared_ptr<SonarImage> image){
+    msg_img_.encoding = "mono8";
+    msg_img_.is_bigendian = false;
 
     // Create the message from the sonar image
-    msg_img.header = this->commonHeader_;
-    msg_img.height = image.imageHeight;
-    msg_img.width = image.imageWidth;
-    msg_img.step = image.imageWidth; // since data of sonar image is uint8
+    msg_img_.header = commonHeader_;
+    msg_img_.height = image->imageHeight;
+    msg_img_.width = image->imageWidth;
+    msg_img_.step = image->imageWidth; // since data of sonar image is uint8
 
-    uint32_t size = msg_img.height * msg_img.width;
+    uint32_t size = msg_img_.height * msg_img_.width;
+    printf("publishImage. MemcpyStarting. Size: %i\n", size);
+    // msg_img_.data.resize(size);
+    // memcpy(&msg_img_.data[0], image->data.get(), size);
 
-    memcpy(&msg_img.data[0], &image.data, size);
+    // msg_img_.data = *image.data;
 
-    // msg_img.data = *image.data;
-
-    this->pub_img->publish(msg_img);
+    printf("publishImage. MemcpyDone\n");
+    // this->pub_img->publish(*msg_img_);
+    printf("publishImage. Published\n");
 }
 
 void OculusDriverNode::publishAdditionalInformation1(OculusSonarImage &image){
@@ -52,7 +57,7 @@ void OculusDriverNode::publishAdditionalInformation2(OculusSonarImage2 &image){
     this->publishTemperature(image.temperature);
 
     geometry_msgs::msg::Vector3Stamped msg;
-    msg.header = this->commonHeader_;
+    msg.header = commonHeader_;
     msg.vector.x = image.heading;
     msg.vector.y = image.pitch;
     msg.vector.z = image.roll;
@@ -61,14 +66,14 @@ void OculusDriverNode::publishAdditionalInformation2(OculusSonarImage2 &image){
 
 void OculusDriverNode::publishPressure(double pressure){
     sensor_msgs::msg::FluidPressure msg;
-    msg.header = this->commonHeader_;
+    msg.header = commonHeader_;
     msg.fluid_pressure = pressure;
     this->pub_pressure->publish(msg);
 }
 
 void OculusDriverNode::publishTemperature(double temperature){
     sensor_msgs::msg::Temperature msg;
-    msg.header = this->commonHeader_;
+    msg.header = commonHeader_;
     msg.temperature = temperature;
     this->pub_temperature->publish(msg);
 }
@@ -77,7 +82,7 @@ void OculusDriverNode::publishTemperature(double temperature){
 void OculusDriverNode::publishCurrentConfig(){
     sonar_driver_interfaces::msg::SonarConfiguration configuration;
 
-    configuration.header = this->commonHeader_;
+    configuration.header = commonHeader_;
 
     // Fill message with configuration data from sonar
     configuration.fire_mode = sonar_->getFireMode();
@@ -107,7 +112,7 @@ void OculusDriverNode::publishCurrentConfig(){
 
     // Publish the bearing table 
     sonar_driver_interfaces::msg::SonarBearings msg_bearings;
-    msg_bearings.header = this->commonHeader_;
+    msg_bearings.header = commonHeader_;
     msg_bearings.bearings = sonar_->getBearingTable();
     this->pub_bearings->publish(msg_bearings);
     
@@ -133,10 +138,18 @@ void OculusDriverNode::cb_reconfiguration(const sonar_driver_interfaces::msg::So
 /// @param sonar 
 /// @param image 
 void OculusDriverNode::cb_simplePingResult(std::shared_ptr<SonarImage> image){
-    publishImage(*image);
+    updateCommonHeader();
+    publishImage(image);
     publishCurrentConfig();
+
+    publishIt = true;
 }
 
+
+void OculusDriverNode::updateCommonHeader(){
+    commonHeader_.frame_id = "sonar_0";
+    commonHeader_.stamp = this->get_clock()->now();
+}
 
 int main(int argc, char **argv){
     rclcpp::init(argc, argv);
@@ -159,10 +172,10 @@ int main(int argc, char **argv){
     };
 
     // Register the callback
-    node->sonar_->registerCallback(callback);
+    // node->sonar_->registerCallback(callback);
 
     while (rclcpp::ok()){
-        rclcpp::spin_some(node);
+        //rclcpp::spin_some(node);
         node->sonar_->fire();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }

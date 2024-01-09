@@ -28,6 +28,7 @@ void OculusSonar::findAndConnect(){
             if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0)
             {
                 this->partNumber = determinePartNumber(buf);
+                printf("finAndConnect:Adress %s\n", sonarAddress.c_str());
                 this->connect(sonarAddress);
             }
             delete[] buf;
@@ -60,6 +61,7 @@ OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpB
 
 
 void OculusSonar::connect(const std::string& address){
+    printf("connect:Adress %s\n", address.c_str());
     if (sonarTCPSocket->getState() == EZSocket::SocketState::Ready){
         sonarTCPSocket->setReceiveBufferSize(200000);
         sonarTCPSocket->connectToHost(address, OCULUS_TCP_PORT);
@@ -172,6 +174,7 @@ void OculusSonar::invokeCallbacks(){
     int32_t bytesRead;
     uint64_t currPktSize;
 
+
     while (callbackThreadActive)
     {
         // Check for received data
@@ -189,6 +192,7 @@ void OculusSonar::invokeCallbacks(){
         bytesRead = sonarTCPSocket->readData(&rxBuff[rxBuffPos], bytesAvailable);
         // Check for socket errors or disconnects
         if (bytesRead < 0){
+            printf("OculusSonar: Socket Errors or disconnects\n");
             break;
         }
         rxBuffPos += bytesRead;
@@ -218,17 +222,16 @@ void OculusSonar::invokeCallbacks(){
         // Check which message type was received
         switch (omh->msgId){
             case OculusMessages::OculusMessageType::messageSimplePingResult:
-                // Received result of ping
                 processSimplePingResult((OculusMessages::OculusSimplePingResult *)omh);
                 break;
             case OculusMessages::OculusMessageType::messageUserConfig:
-                // Received user config
+                printf("OculusSonar: Received user config message\n");
                 break;
             case OculusMessages::OculusMessageType::messageDummy:
-                // Received dummy message
+                printf("OculusSonar: Received dummy message\n");
                 break;
             default:
-                // Unrecognized message
+                printf("OculusSonar: Received unknown message\n");
                 break;
         }
 
@@ -244,6 +247,7 @@ void OculusSonar::invokeCallbacks(){
 }
 
 void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult *ospr){
+    printf("processSimplePingResult:\n");
     uint8_t *startAddress = (uint8_t *)ospr;
 
     uint32_t imageSize;
@@ -256,33 +260,29 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
     OculusMessages::OculusSimplePingResult2 *ospr2 = (OculusMessages::OculusSimplePingResult2 *)ospr;
 
     // Check message version
-    switch (version)
-    {
-    case 2:
-        imageSize = ospr2->imageSize;
-        imageOffset = ospr2->imageOffset;
-        beams = ospr2->nBeams;
-        ranges = ospr2->nRanges;
-        this->rangeResolution = ospr2->rangeResolution;
-        break;
-    default:
-        imageSize = ospr->imageSize;
-        imageOffset = ospr->imageOffset;
-        beams = ospr->nBeams;
-        ranges = ospr->nRanges;
-        this->rangeResolution = ospr->rangeResolution;
-        break;
+    switch (version){
+        case 2:
+            imageSize = ospr2->imageSize;
+            imageOffset = ospr2->imageOffset;
+            beams = ospr2->nBeams;
+            ranges = ospr2->nRanges;
+            rangeResolution = ospr2->rangeResolution;
+            break;
+        default:
+            imageSize = ospr->imageSize;
+            imageOffset = ospr->imageOffset;
+            beams = ospr->nBeams;
+            ranges = ospr->nRanges;
+            rangeResolution = ospr->rangeResolution;
+            break;
     }
-
+    printf("FirstCaseDone\n");
     // Remember the beams and range bin count
     this->beams = beams;
     this->rangeBinCount = ranges;
 
     // Check if image size is correct
     if (ospr->fireMessage.head.payloadSize + sizeof(OculusMessages::OculusMessageHeader) == imageOffset + imageSize){
-        // Copy image into sonar image
-        SonarImage *img;
-
         switch (version){
             case 2:{
                 this->operatingFrequency = ospr2->frequency;
@@ -297,25 +297,32 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
                 break;
             }
         }
+        printf("StartMemcpy\n");
 
         memcpy(lastImage->bearingTable.get(), startAddress + 122, beams * sizeof(int16_t));
 
+        printf("StartMemcp2\n");
+        lastImage->imageHeight = ranges;
+        lastImage->imageWidth  = beams;
         memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
 
+        printf("DoneMemcpy\n");
 
         // New image ready, notify all callbacks
         SonarCallback cb;
         std::lock_guard<std::mutex> lock(callbackMutex);
         for (uint16_t i = 0; i < callbacks.size(); i++)
         {
+            printf("DoingCallbacks\n");
             cb = callbacks.at(i);
             cb(lastImage);
         }
     }
     else
     {
-        // Message format not correct
+        printf("OculusSonar: No valid message\n");
     }
+    printf("ProcessedPingResult\n");
 }
 
 

@@ -28,7 +28,6 @@ public:
     
     std::shared_ptr<OculusSonar> sonar_ = std::make_shared<OculusSonar>();
 
-    std_msgs::msg::Header commonHeader_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_img;
     rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pub_pressure;
@@ -36,14 +35,18 @@ public:
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_orientation;
     rclcpp::Publisher<sonar_driver_interfaces::msg::SonarConfiguration>::SharedPtr pub_configuration;
     rclcpp::Publisher<sonar_driver_interfaces::msg::SonarBearings>::SharedPtr pub_bearings;
+
     rclcpp::Subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>::SharedPtr sub_reconfiguration;
 
     void cb_simplePingResult(std::shared_ptr<SonarImage> image);
 
+    bool publishIt = false;
+
 protected:
 
+    void updateCommonHeader();
 
-    void publishImage(SonarImage &image);
+    void publishImage(std::shared_ptr<SonarImage> image);
     void publishCurrentConfig();
 
     void publishAdditionalInformation1(OculusSonarImage &image);
@@ -52,6 +55,11 @@ protected:
     void publishTemperature(double temperature);
 
     void cb_reconfiguration(const sonar_driver_interfaces::msg::SonarConfigurationChange::SharedPtr msg);
+
+    std_msgs::msg::Header commonHeader_;
+    sensor_msgs::msg::Image msg_img_;
+    sensor_msgs::msg::Image* msg_img_raw;
+
 
 };
 

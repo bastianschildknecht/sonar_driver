@@ -6,7 +6,8 @@ def generate_launch_description():
         Node(
             package='sonar_driver',
             namespace='sonar',
-            executable='oculus_driver',
+            executable='OculusDriverNode',
+            prefix=['xterm -e gdb -ex=r --args'],
             name='sonar_driver'
         )
     ])
