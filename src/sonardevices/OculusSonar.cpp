@@ -310,7 +310,7 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         // memcpy(lastImage->data, startAddress + imageOffset, imageSize);
        // ====================================
 
-        auto bearingTableSize = beams * sizeof(int16_t);
+        uint32_t bearingTableSize = beams * sizeof(int16_t);
         lastImage->bearingTable.resize(bearingTableSize);
         memcpy(&lastImage->bearingTable[0], startAddress + 122, bearingTableSize);
 
@@ -329,7 +329,7 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         {
             printf("DoingCallbacks\n");
             cb = callbacks.at(i);
-            cb(lastImage.get());
+            cb(lastImage);
         }
     }
     else
@@ -344,7 +344,7 @@ std::vector<int16_t> OculusSonar::getBearingTable(){
     printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
     std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
-    std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
+    std::transform(&lastImage->bearingTable[0], &lastImage->bearingTable[0] + n, bearingVector.begin(), [](int16_t bearing) {
         return bearing;
     });
     printf("sonardevices.cpp getBearingTable(): Finished transform\n");
