@@ -24,7 +24,7 @@ Sonar::Sonar(){
     pingRate = 0;
     callbackThreadStarted = false;
     callbackThreadActive = false;
-    lastImage = std::make_shared<SonarImage>();
+    std::unique_ptr<SonarImage> lastImage = std::make_unique<SonarImage>();
     state = SonarState::Ready;
 }
 
@@ -35,6 +35,7 @@ Sonar::~Sonar(){
         callbackThread.join();
         callbackThreadStarted = false;
     }
+    
 }
 
 void Sonar::registerCallback(SonarCallback callback){

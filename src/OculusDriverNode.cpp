@@ -23,7 +23,7 @@ OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(n
 }
 
 
-void OculusDriverNode::publishImage(std::shared_ptr<SonarImage> image){
+void OculusDriverNode::publishImage(std::unique_ptr<SonarImage>& image){
     msg_img_.encoding = "mono8";
     msg_img_.is_bigendian = false;
 
@@ -35,13 +35,13 @@ void OculusDriverNode::publishImage(std::shared_ptr<SonarImage> image){
 
     uint32_t size = msg_img_.height * msg_img_.width;
     printf("publishImage. MemcpyStarting. Size: %i\n", size);
-    // msg_img_.data.resize(size);
-    // memcpy(&msg_img_.data[0], image->data.get(), size);
+    msg_img_.data.resize(size);
+    memcpy(&msg_img_.data[0], &image->data[0], size);
 
     // msg_img_.data = *image.data;
 
     printf("publishImage. MemcpyDone\n");
-    // this->pub_img->publish(*msg_img_);
+    this->pub_img->publish(msg_img_);
     printf("publishImage. Published\n");
 }
 
@@ -137,12 +137,11 @@ void OculusDriverNode::cb_reconfiguration(const sonar_driver_interfaces::msg::So
 /// @brief Method to execute upon receival of a simplePingResult Message 
 /// @param sonar 
 /// @param image 
-void OculusDriverNode::cb_simplePingResult(std::shared_ptr<SonarImage> image){
+void OculusDriverNode::cb_simplePingResult(std::unique_ptr<SonarImage>& image){
     updateCommonHeader();
     publishImage(image);
     publishCurrentConfig();
 
-    publishIt = true;
 }
 
 
@@ -167,7 +166,7 @@ int main(int argc, char **argv){
     node->sonar_->configure(2, 5.0, 80.0, 0.0, 0.0, false, 255, 0xff);
     node->sonar_->setPingRate(40);
     
-    SonarCallback callback = [&node](std::shared_ptr<SonarImage> image) -> void {
+    SonarCallback callback = [&node](std::unique_ptr<SonarImage>& image) -> void {
         node->cb_simplePingResult(image);
     };
 

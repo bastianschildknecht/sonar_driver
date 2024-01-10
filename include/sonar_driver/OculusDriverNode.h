@@ -38,7 +38,7 @@ public:
 
     rclcpp::Subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>::SharedPtr sub_reconfiguration;
 
-    void cb_simplePingResult(std::shared_ptr<SonarImage> image);
+    void cb_simplePingResult(std::unique_ptr<SonarImage>& image);
 
     bool publishIt = false;
 
@@ -46,7 +46,7 @@ protected:
 
     void updateCommonHeader();
 
-    void publishImage(std::shared_ptr<SonarImage> image);
+    void publishImage(std::unique_ptr<SonarImage>& image);
     void publishCurrentConfig();
 
     void publishAdditionalInformation1(OculusSonarImage &image);

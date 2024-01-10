@@ -299,12 +299,26 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         }
         printf("StartMemcpy\n");
 
-        memcpy(lastImage->bearingTable.get(), startAddress + 122, beams * sizeof(int16_t));
+       // ====================================
+        // delete[] lastImage->bearingTable;
+        // lastImage->bearingTable = new int16_t[beams * sizeof(int16_t)];
+        // memcpy(lastImage->bearingTable, startAddress + 122, beams * sizeof(int16_t));
+// 
+        // lastImage->imageHeight = ranges;
+        // lastImage->imageWidth  = beams;
+        // lastImage->data = new uint8_t[imageSize];
+        // memcpy(lastImage->data, startAddress + imageOffset, imageSize);
+       // ====================================
+
+        auto bearingTableSize = beams * sizeof(int16_t);
+        lastImage->bearingTable.resize(bearingTableSize);
+        memcpy(&lastImage->bearingTable[0], startAddress + 122, bearingTableSize);
 
         printf("StartMemcp2\n");
         lastImage->imageHeight = ranges;
         lastImage->imageWidth  = beams;
-        memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
+        lastImage->data.resize(imageSize);
+        memcpy(&lastImage->data[0], startAddress + imageOffset, imageSize);
 
         printf("DoneMemcpy\n");
 
@@ -315,7 +329,7 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
         {
             printf("DoingCallbacks\n");
             cb = callbacks.at(i);
-            cb(lastImage);
+            cb(lastImage.get());
         }
     }
     else
@@ -330,7 +344,7 @@ std::vector<int16_t> OculusSonar::getBearingTable(){
     printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
     std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
-    std::transform(lastImage->bearingTable.get(), lastImage->bearingTable.get() + n, bearingVector.begin(), [](int16_t bearing) {
+    std::transform(lastImage->bearingTable, lastImage->bearingTable + n, bearingVector.begin(), [](int16_t bearing) {
         return bearing;
     });
     printf("sonardevices.cpp getBearingTable(): Finished transform\n");
