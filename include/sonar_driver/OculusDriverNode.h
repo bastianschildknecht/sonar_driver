@@ -26,7 +26,7 @@ class OculusDriverNode : public rclcpp::Node
 public:
     OculusDriverNode(const std::string& nodeName);
     
-    std::shared_ptr<OculusSonar> sonar_ = std::make_shared<OculusSonar>();
+    std::unique_ptr<OculusSonar> sonar_;
 
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_img;

@@ -313,15 +313,15 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
        // ====================================
 
         uint32_t bearingTableSize = beams * sizeof(int16_t);
-        lastImage->bearingTable->resize(bearingTableSize);
+        // lastImage->bearingTable->resize(bearingTableSize);
         // memcpy(lastImage->bearingTable.get(), startAddress + 122, bearingTableSize);
         lastImage->bearingTable = std::make_unique<std::vector<int16_t>>(startAddress, startAddress + 122);
 
         printf("StartMemcp2\n");
         lastImage->imageHeight = ranges;
         lastImage->imageWidth  = beams;
-        lastImage->data->resize(imageSize);
-        memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
+        lastImage->data = std::make_unique<std::vector<uint8_t>>(startAddress + imageOffset, startAddress + imageOffset + imageSize);
+        // memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
 
         printf("DoneMemcpy\n");
 

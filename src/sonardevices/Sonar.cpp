@@ -24,13 +24,11 @@ Sonar::Sonar(){
     pingRate = 0;
     callbackThreadStarted = false;
     callbackThreadActive = false;
-    std::unique_ptr<SonarImage> lastImage = std::make_unique<SonarImage>();
     state = SonarState::Ready;
 }
 
 Sonar::~Sonar(){
-    if (callbackThreadStarted)
-    {
+    if (callbackThreadStarted){
         callbackThreadActive = false;
         callbackThread.join();
         callbackThreadStarted = false;

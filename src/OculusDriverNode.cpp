@@ -14,6 +14,9 @@ OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(n
 
     msg_img_raw = new sensor_msgs::msg::Image();
 
+
+    sonar_ = std::make_unique<OculusSonar>();
+
     updateCommonHeader();
 
     sub_reconfiguration = this->create_subscription<sonar_driver_interfaces::msg::SonarConfigurationChange>(
@@ -157,7 +160,6 @@ int main(int argc, char **argv){
     std::shared_ptr<OculusDriverNode> node = std::make_shared<OculusDriverNode>("OculusDriverNode");
 
     // Initialize and connect to sonar
-    node->sonar_ = std::make_shared<OculusSonar>();
     node->sonar_->findAndConnect();            // This starts the thread that will process new images
     if (node->sonar_->getState() != SonarState::Connected){
         exit(EXIT_FAILURE);
@@ -172,7 +174,7 @@ int main(int argc, char **argv){
     };
 
     // Register the callback
-    // node->sonar_->registerCallback(callback);
+    node->sonar_->registerCallback(callback);
 
     while (rclcpp::ok()){
         //rclcpp::spin_some(node);

@@ -8,8 +8,8 @@ class SonarImage
 {
 public:
     SonarImage() {
-        bearingTable->resize(1024);
-        data->resize(200000);
+        std::unique_ptr<std::vector<uint8_t>> data = std::make_unique<std::vector<uint8_t>>(1024);
+        std::unique_ptr<std::vector<int16_t>> bearingTable = std::make_unique<std::vector<int16_t>>(200000);
     };
 
     uint16_t imageWidth = 0;

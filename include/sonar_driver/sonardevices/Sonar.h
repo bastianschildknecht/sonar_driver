@@ -131,7 +131,7 @@ protected:
     std::vector<SonarCallback> callbacks;
     std::thread callbackThread;
     std::mutex callbackMutex;
-    std::unique_ptr<SonarImage> lastImage;
+    std::unique_ptr<SonarImage> lastImage = std::make_unique<SonarImage>();
 
     bool callbackThreadStarted;
     volatile bool callbackThreadActive;
