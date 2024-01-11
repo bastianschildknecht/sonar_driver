@@ -27,6 +27,14 @@ Sonar::Sonar(){
     state = SonarState::Ready;
 }
 
+Sonar::Sonar(std::shared_ptr<sensor_msgs::msg::Image> messagePointer) : Sonar(){
+    rosImageMessagePointer = messagePointer;
+}
+
+
+
+
+
 Sonar::~Sonar(){
     if (callbackThreadStarted){
         callbackThreadActive = false;

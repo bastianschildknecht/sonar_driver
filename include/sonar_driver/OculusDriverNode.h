@@ -58,6 +58,7 @@ protected:
 
     std_msgs::msg::Header commonHeader_;
     sensor_msgs::msg::Image msg_img_;
+    std::shared_ptr<sensor_msgs::msg::Image> msg_imageShared = std::make_shared<sensor_msgs::msg::Image>();
     sensor_msgs::msg::Image* msg_img_raw;
 
 

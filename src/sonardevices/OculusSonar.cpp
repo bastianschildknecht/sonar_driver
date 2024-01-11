@@ -14,6 +14,18 @@ OculusSonar::OculusSonar() : Sonar(){
     rangeResolution = 0.0;
 }
 
+OculusSonar::OculusSonar(std::shared_ptr<sensor_msgs::msg::Image> messagePointer) : Sonar(messagePointer){
+    sonarTCPSocket = std::make_shared<EZSocket::TCPSocket>();
+    sonarUDPSocket = std::make_shared<EZSocket::UDPSocket>();
+    sonarAddress = "empty";
+    partNumber = OculusMessages::OculusPartNumberType::partNumberUndefined;
+    oculusPingRate = OculusMessages::PingRateType::pingRateStandby;
+    operatingFrequency = 0.0;
+    beams = 0;
+    rangeBinCount = 0;
+    rangeResolution = 0.0;
+}
+
 OculusSonar::~OculusSonar(){
     
 }
@@ -250,7 +262,6 @@ void OculusSonar::invokeCallbacks(){
 void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult *ospr){
     printf("processSimplePingResult:\n");
     uint8_t *startAddress = (uint8_t *)ospr;
-    int16_t *startAddress16 = (int16_t *)ospr;
 
     uint32_t imageSize;
     uint32_t imageOffset;
@@ -299,37 +310,19 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
                 break;
             }
         }
-        printf("StartMemcpy\n");
-
-       // ====================================
-        // delete[] lastImage->bearingTable;
-        // lastImage->bearingTable = new int16_t[beams * sizeof(int16_t)];
-        // memcpy(lastImage->bearingTable, startAddress + 122, beams * sizeof(int16_t));
-// 
-        // lastImage->imageHeight = ranges;
-        // lastImage->imageWidth  = beams;
-        // lastImage->data = new uint8_t[imageSize];
-        // memcpy(lastImage->data, startAddress + imageOffset, imageSize);
-       // ====================================
 
         uint32_t bearingTableSize = beams * sizeof(int16_t);
-        // lastImage->bearingTable->resize(bearingTableSize);
-        // memcpy(lastImage->bearingTable.get(), startAddress + 122, bearingTableSize);
         lastImage->bearingTable = std::make_unique<std::vector<int16_t>>(startAddress, startAddress + 122);
 
-        printf("StartMemcp2\n");
         lastImage->imageHeight = ranges;
         lastImage->imageWidth  = beams;
-        lastImage->data = std::make_unique<std::vector<uint8_t>>(startAddress + imageOffset, startAddress + imageOffset + imageSize);
-        // memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
-
-        printf("DoneMemcpy\n");
+        //lastImage->data = std::make_unique<std::vector<uint8_t>>(startAddress + imageOffset, startAddress + imageOffset + imageSize);
+        rosImageMessagePointer->data = std::vector<uint8_t>(startAddress + imageOffset, startAddress + imageOffset + imageSize);
 
         // New image ready, notify all callbacks
         SonarCallback cb;
         std::lock_guard<std::mutex> lock(callbackMutex);
         for (uint16_t i = 0; i < callbacks.size(); i++){
-            printf("DoingCallbacks\n");
             cb = callbacks.at(i);
             cb(lastImage);
         }

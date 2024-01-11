@@ -46,7 +46,8 @@ target_link_libraries(sonardevices ezsocket)
 target_include_directories(sonardevices PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-
+  ament_target_dependencies(sonardevices
+  sensor_msgs)
 # ==================================================================== oculusDriver
 add_library(oculusDriver src/
   src/OculusDriverNode.cpp

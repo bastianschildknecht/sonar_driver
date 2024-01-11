@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <vector>
 
-class SonarImage
-{
+
+class SonarImage{
 public:
     SonarImage() {
         std::unique_ptr<std::vector<uint8_t>> data = std::make_unique<std::vector<uint8_t>>(1024);

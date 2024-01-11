@@ -17,6 +17,7 @@ class OculusSonar : public Sonar
 {
 public:
     OculusSonar();
+    OculusSonar(std::shared_ptr<sensor_msgs::msg::Image> messagePointer);
     ~OculusSonar();
 
     void findAndConnect() override;

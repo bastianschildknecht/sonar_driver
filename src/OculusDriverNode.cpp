@@ -15,7 +15,7 @@ OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(n
     msg_img_raw = new sensor_msgs::msg::Image();
 
 
-    sonar_ = std::make_unique<OculusSonar>();
+    sonar_ = std::make_unique<OculusSonar>(msg_imageShared);
 
     updateCommonHeader();
 
@@ -27,26 +27,19 @@ OculusDriverNode::OculusDriverNode(const std::string& nodeName) : rclcpp::Node(n
 
 
 void OculusDriverNode::publishImage(std::unique_ptr<SonarImage>& image){
-    msg_img_.encoding = "mono8";
-    msg_img_.is_bigendian = false;
+    msg_imageShared->encoding = "mono8";
+    msg_imageShared->is_bigendian = false;
 
     // Create the message from the sonar image
-    msg_img_.header = commonHeader_;
-    msg_img_.height = image->imageHeight;
-    msg_img_.width = image->imageWidth;
-    msg_img_.step = image->imageWidth; // since data of sonar image is uint8
+    msg_imageShared->header = commonHeader_;
+    msg_imageShared->height = image->imageHeight;
+    msg_imageShared->width = image->imageWidth;
+    msg_imageShared->step = image->imageWidth; // since data of sonar image is uint8
 
-    uint32_t size = msg_img_.height * msg_img_.width;
-    printf("publishImage. MemcpyStarting. Size: %i\n", size);
-    // msg_img_.data.resize(size);
-    // memcpy(&msg_img_.data[0], image->data.get(), size);
-    msg_img_.data = *image->data;
+    //msg_img_.data = *image->data;
 
-    // msg_img_.data = *image.data;
-
-    printf("publishImage. MemcpyDone\n");
-    this->pub_img->publish(msg_img_);
-    printf("publishImage. Published\n");
+    this->pub_img->publish(*msg_imageShared);
+    
 }
 
 void OculusDriverNode::publishAdditionalInformation1(OculusSonarImage &image){
@@ -176,8 +169,10 @@ int main(int argc, char **argv){
     // Register the callback
     node->sonar_->registerCallback(callback);
 
+    printf("OculusDriverNode: Starting Loop\n");
     while (rclcpp::ok()){
         //rclcpp::spin_some(node);
+        printf("OculusDriverNode: Firing\n");
         node->sonar_->fire();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
