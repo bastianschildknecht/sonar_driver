@@ -2,8 +2,12 @@
 
 #include <stdint.h>
 #include <thread>
+#include <memory.h>
+#include <chrono>
 #include <mutex>
+
 #include <sonar_driver/ezsocket/ezsocket.hxx>
+
 
 namespace EZSocket
 {

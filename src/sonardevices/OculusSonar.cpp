@@ -188,8 +188,9 @@ void OculusSonar::invokeCallbacks(){
     uint64_t currPktSize;
 
 
-    while (callbackThreadActive)
-    {
+    while (callbackThreadActive){
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        
         // Check for received data
         bytesAvailable = sonarTCPSocket->bytesAvailable();
         if (bytesAvailable <= 0){
@@ -260,7 +261,6 @@ void OculusSonar::invokeCallbacks(){
 }
 
 void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult *ospr){
-    printf("processSimplePingResult:\n");
     uint8_t *startAddress = (uint8_t *)ospr;
 
     uint32_t imageSize;
@@ -289,7 +289,6 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
             rangeResolution = ospr->rangeResolution;
             break;
     }
-    printf("FirstCaseDone\n");
     // Remember the beams and range bin count
     this->beams = beams;
     this->rangeBinCount = ranges;
@@ -331,18 +330,15 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
     {
         printf("OculusSonar: No valid message\n");
     }
-    printf("ProcessedPingResult\n");
 }
 
 
 std::vector<int16_t> OculusSonar::getBearingTable(){
-    printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
     std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
     std::transform(lastImage->bearingTable->begin(), lastImage->bearingTable->end(), bearingVector.begin(), [](int16_t bearing) {
         return bearing;
     });
-    printf("sonardevices.cpp getBearingTable(): Finished transform\n");
     return bearingVector;
 }
 

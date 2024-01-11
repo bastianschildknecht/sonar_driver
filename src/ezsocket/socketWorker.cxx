@@ -1,8 +1,6 @@
 // File: socketWorker.cxx
 
 #include <stdint.h>
-#include <thread>
-#include <memory.h>
 #include <sonar_driver/ezsocket/ezsocket.hxx>
 #include <sonar_driver/ezsocket/socketWorker.hxx>
 
@@ -108,8 +106,8 @@ void SocketWorker::worker()
     uint32_t readyBytes;
     int32_t recvSize;
     int32_t sendSize;
-    while (true)
-    {
+    while (true){
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         /**
          *  Receive availble bytes from socket and store them in the readBuffer
          **/
