@@ -47,10 +47,6 @@ SonarState Sonar::getState(){
     return state;
 }
 
-SonarImage Sonar::getLastImage(){
-    return *lastImage;
-}
-
 uint8_t Sonar::getFireMode(){
     return fireMode;
 }

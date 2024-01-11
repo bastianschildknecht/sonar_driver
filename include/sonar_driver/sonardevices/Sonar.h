@@ -51,10 +51,6 @@ public:
     // Signal the sonar to aquire a new image (blocking)
     virtual void fire() = 0;
 
-    // Retrieve the last sonar image captured
-    // If no image is available an empty image is returned
-    virtual SonarImage getLastImage();
-
     // Get the current connection state of the sonar
     virtual SonarState getState();
 

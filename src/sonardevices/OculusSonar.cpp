@@ -19,22 +19,22 @@ OculusSonar::~OculusSonar(){
 }
 
 void OculusSonar::findAndConnect(){
-    if (sonarUDPSocket->getState() == EZSocket::SocketState::Ready)
-    {
-        sonarUDPSocket->bindToAddress("ANY", OCULUS_UDP_PORT);
-        if (sonarUDPSocket->getState() == EZSocket::SocketState::Bound)
-        {
-            char *buf = new char[256];
-            if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0)
-            {
-                this->partNumber = determinePartNumber(buf);
-                printf("finAndConnect:Adress %s\n", sonarAddress.c_str());
-                this->connect(sonarAddress);
-            }
-            delete[] buf;
-            buf = nullptr;
-        }
+    if (sonarUDPSocket->getState() != EZSocket::SocketState::Ready){
+        return;
     }
+    sonarUDPSocket->bindToAddress("ANY", OCULUS_UDP_PORT);
+    if (sonarUDPSocket->getState() != EZSocket::SocketState::Bound){
+        return;
+    }
+    char *buf = new char[256];
+    if (sonarUDPSocket->waitForDataAndAddress(buf, 256, sonarAddress, STR_ADDRESS_LEN) > 0){
+        this->partNumber = determinePartNumber(buf);
+        printf("finAndConnect: Adress %s\n", sonarAddress.c_str());
+        this->connect(sonarAddress);
+    }
+    delete[] buf;
+    buf = nullptr;
+    
 }
 
 OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpBroadcastMessage){
@@ -62,16 +62,17 @@ OculusMessages::OculusPartNumberType OculusSonar::determinePartNumber(char *udpB
 
 void OculusSonar::connect(const std::string& address){
     printf("connect:Adress %s\n", address.c_str());
-    if (sonarTCPSocket->getState() == EZSocket::SocketState::Ready){
-        sonarTCPSocket->setReceiveBufferSize(200000);
-        sonarTCPSocket->connectToHost(address, OCULUS_TCP_PORT);
-        if (sonarTCPSocket->getState() == EZSocket::SocketState::Connected){
-            sonarAddress = address;
-            callbackThreadActive = true;
-            callbackThread = std::thread([this] { this->invokeCallbacks(); });
-            callbackThreadStarted = true;
-            state = SonarState::Connected;
-        }
+    if (sonarTCPSocket->getState() != EZSocket::SocketState::Ready){
+        return;
+    }
+    sonarTCPSocket->setReceiveBufferSize(200000);
+    sonarTCPSocket->connectToHost(address, OCULUS_TCP_PORT);
+    if (sonarTCPSocket->getState() == EZSocket::SocketState::Connected){
+        sonarAddress = address;
+        callbackThreadActive = true;
+        callbackThread = std::thread([this] { this->invokeCallbacks(); });
+        callbackThreadStarted = true;
+        state = SonarState::Connected;
     }
 }
 
@@ -249,6 +250,7 @@ void OculusSonar::invokeCallbacks(){
 void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult *ospr){
     printf("processSimplePingResult:\n");
     uint8_t *startAddress = (uint8_t *)ospr;
+    int16_t *startAddress16 = (int16_t *)ospr;
 
     uint32_t imageSize;
     uint32_t imageOffset;
@@ -311,22 +313,22 @@ void OculusSonar::processSimplePingResult(OculusMessages::OculusSimplePingResult
        // ====================================
 
         uint32_t bearingTableSize = beams * sizeof(int16_t);
-        lastImage->bearingTable.resize(bearingTableSize);
-        memcpy(&lastImage->bearingTable[0], startAddress + 122, bearingTableSize);
+        lastImage->bearingTable->resize(bearingTableSize);
+        // memcpy(lastImage->bearingTable.get(), startAddress + 122, bearingTableSize);
+        lastImage->bearingTable = std::make_unique<std::vector<int16_t>>(startAddress, startAddress + 122);
 
         printf("StartMemcp2\n");
         lastImage->imageHeight = ranges;
         lastImage->imageWidth  = beams;
-        lastImage->data.resize(imageSize);
-        memcpy(&lastImage->data[0], startAddress + imageOffset, imageSize);
+        lastImage->data->resize(imageSize);
+        memcpy(lastImage->data.get(), startAddress + imageOffset, imageSize);
 
         printf("DoneMemcpy\n");
 
         // New image ready, notify all callbacks
         SonarCallback cb;
         std::lock_guard<std::mutex> lock(callbackMutex);
-        for (uint16_t i = 0; i < callbacks.size(); i++)
-        {
+        for (uint16_t i = 0; i < callbacks.size(); i++){
             printf("DoingCallbacks\n");
             cb = callbacks.at(i);
             cb(lastImage);
@@ -344,7 +346,7 @@ std::vector<int16_t> OculusSonar::getBearingTable(){
     printf("sonardevices.cpp getBearingTable(): Starting transform\n");
     int n = lastImage->imageWidth;
     std::vector<int16_t> bearingVector(n);  // preallocate space for the bearings
-    std::transform(&lastImage->bearingTable[0], &lastImage->bearingTable[0] + n, bearingVector.begin(), [](int16_t bearing) {
+    std::transform(lastImage->bearingTable->begin(), lastImage->bearingTable->end(), bearingVector.begin(), [](int16_t bearing) {
         return bearing;
     });
     printf("sonardevices.cpp getBearingTable(): Finished transform\n");

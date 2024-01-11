@@ -35,8 +35,9 @@ void OculusDriverNode::publishImage(std::unique_ptr<SonarImage>& image){
 
     uint32_t size = msg_img_.height * msg_img_.width;
     printf("publishImage. MemcpyStarting. Size: %i\n", size);
-    msg_img_.data.resize(size);
-    memcpy(&msg_img_.data[0], &image->data[0], size);
+    // msg_img_.data.resize(size);
+    // memcpy(&msg_img_.data[0], image->data.get(), size);
+    msg_img_.data = *image->data;
 
     // msg_img_.data = *image.data;
 
